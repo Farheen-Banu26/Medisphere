@@ -1,0 +1,43 @@
+# Java
+**/target/
+*.class
+
+# Maven Wrapper
+.mvn/wrapper/maven-wrapper.jar
+
+# Python
+.venv/
+venv/
+**/.venv/
+**/venv/
+Medisphere_AI/venv/
+
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Node
+node_modules/
+**/node_modules/
+
+# Build
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+.project
+.classpath
+.settings/
+
+# Logs
+*.log
+*.out
+*.err
+*.pid
+
+# OS
+.DS_Store
+Thumbs.db

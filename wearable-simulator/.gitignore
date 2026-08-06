@@ -1,0 +1,72 @@
+HELP.md
+target/
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
+
+
+### Python ###
+.venv/
+venv/
+**/.venv/
+**/venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+### AI Models ###
+*.h5
+*.keras
+*.pt
+*.pth
+*.onnx
+*.joblib
+*.pickle
+
+### Node.js ###
+node_modules/
+**/node_modules/
+
+### Build ###
+dist/
+build/
+
+### Logs ###
+*.log
+*.out
+*.err
+*.pid
+
+### OS Files ###
+.DS_Store
+Thumbs.db
+Medisphere_AI/venv/

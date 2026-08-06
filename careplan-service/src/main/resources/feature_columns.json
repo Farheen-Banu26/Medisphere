@@ -1,0 +1,19 @@
+[
+  "age",
+  "gender",
+  "height",
+  "weight",
+  "bmi",
+  "heartRate",
+  "systolicBP",
+  "diastolicBP",
+  "oxygen",
+  "temperature",
+  "steps",
+  "sleepHours",
+  "cholesterol",
+  "bloodGlucose",
+  "hbA1c",
+  "smokingHistory",
+  "familyHistory"
+]
