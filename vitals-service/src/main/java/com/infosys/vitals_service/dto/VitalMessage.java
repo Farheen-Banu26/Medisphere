@@ -10,13 +10,14 @@ public class VitalMessage {
     private int spo2;
     private int steps;
     private double sleepHours;
+    private int respirationRate;
 
     public VitalMessage() {
     }
 
     public VitalMessage(String patientId, int heartRate, int bpSystolic,
                         int bpDiastolic, double temperature,
-                        int spo2, int steps, double sleepHours) {
+                        int spo2, int steps, double sleepHours, int respirationRate) {
 
         this.patientId = patientId;
         this.heartRate = heartRate;
@@ -26,6 +27,7 @@ public class VitalMessage {
         this.spo2 = spo2;
         this.steps = steps;
         this.sleepHours = sleepHours;
+        this.respirationRate = respirationRate;
     }
 
     public String getPatientId() {
@@ -90,5 +92,13 @@ public class VitalMessage {
 
     public void setSleepHours(double sleepHours) {
         this.sleepHours = sleepHours;
+    }
+
+    public int getRespirationRate() {
+        return respirationRate;
+    }
+
+    public void setRespirationRate(int respirationRate) {
+        this.respirationRate = respirationRate;
     }
 }

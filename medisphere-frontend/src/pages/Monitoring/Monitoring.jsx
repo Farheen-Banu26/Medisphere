@@ -1,8 +1,7 @@
 // src/pages/Monitoring/Monitoring.jsx
 // Doctor Monitoring Dashboard — Milestone 3
 // Professional ICU command center: live patient vitals, alerts, notifications
-// Includes Milestone 3 Critical Alert Popup automatically displayed on active CRITICAL alerts.
-// Polls every 5 seconds. No WebSockets. No backend changes. Reuses existing services.
+// Polls every 5 seconds + receives real-time pushes via SSE notification-stream.
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
@@ -15,6 +14,8 @@ import {
   RiShieldCheckLine,
   RiUserLine,
   RiWifiLine,
+  RiCheckLine,
+  RiCloseLine,
 } from 'react-icons/ri';
 import { alertService }       from '../../services/alertService';
 import { notificationService } from '../../services/notificationService';
@@ -22,7 +23,9 @@ import { patientService }     from '../../services/patientService';
 import { vitalsService }      from '../../services/vitalsService';
 import { twinService }        from '../../services/twinService';
 import { useNotification }    from '../../context/NotificationContext';
+import { useAuth }            from '../../auth/AuthProvider';
 import { CriticalAlertModal } from '../../components/clinical/CriticalAlertModal';
+import { useNotificationStream } from '../../hooks/useNotificationStream';
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 const POLL_MS = 5_000;
@@ -53,79 +56,67 @@ function fmtTime(raw) {
   }
 }
 
-/** Derives a risk label from a numeric health score (same scale used across project). */
+// Map score (0–100) to risk level: lower score = healthier = lower risk
 function getRiskFromScore(score) {
-  if (score == null) return null;
+  if (score == null || isNaN(score)) return null;
   if (score < 25) return 'LOW';
   if (score < 50) return 'MODERATE';
   if (score < 75) return 'HIGH';
   return 'CRITICAL';
 }
 
-// ─── Badge: Severity ──────────────────────────────────────────────────────────
-const SEVERITY_CFG = {
-  CRITICAL: { cls: 'badge-red',    label: 'Critical' },
-  HIGH:     { cls: 'badge-orange', label: 'High' },
-  MEDIUM:   { cls: 'badge-yellow', label: 'Medium' },
-  LOW:      { cls: 'badge-green',  label: 'Low' },
+// ─── Sub-components ────────────────────────────────────────────────────────────
+const RiskBadge = ({ risk }) => {
+  const cfg = {
+    LOW:      { cls: 'badge-green',  label: 'Low'      },
+    MODERATE: { cls: 'badge-yellow', label: 'Moderate' },
+    HIGH:     { cls: 'badge-orange', label: 'High'     },
+    CRITICAL: { cls: 'badge-red',    label: 'Critical' },
+  }[risk] ?? { cls: 'badge-gray', label: risk };
+
+  return <span className={`badge ${cfg.cls} text-xs font-semibold`}>{cfg.label}</span>;
 };
 
 const SeverityBadge = ({ severity }) => {
-  const cfg = SEVERITY_CFG[severity?.toUpperCase()] ?? { cls: 'badge-gray', label: severity ?? '—' };
-  return <span className={`badge ${cfg.cls}`}>{cfg.label}</span>;
-};
+  const cfg = {
+    CRITICAL: 'badge-red',
+    HIGH:     'badge-orange',
+    MEDIUM:   'badge-yellow',
+    LOW:      'badge-green',
+  }[severity?.toUpperCase()] ?? 'badge-gray';
 
-// ─── Badge: Risk (derived from health score) ──────────────────────────────────
-const RISK_CFG = {
-  CRITICAL: { cls: 'badge-red',    label: 'Critical' },
-  HIGH:     { cls: 'badge-orange', label: 'High' },
-  MODERATE: { cls: 'badge-yellow', label: 'Moderate' },
-  LOW:      { cls: 'badge-green',  label: 'Low' },
-};
-
-const RiskBadge = ({ risk }) => {
-  const cfg = RISK_CFG[risk?.toUpperCase()] ?? { cls: 'badge-gray', label: '—' };
-  return <span className={`badge ${cfg.cls}`}>{cfg.label}</span>;
-};
-
-// ─── Badge: Alert Status ──────────────────────────────────────────────────────
-const ALERT_STATUS_CFG = {
-  NEW:          { cls: 'badge-red',    label: 'New',          dot: '#f87171' },
-  SENT:         { cls: 'badge-yellow', label: 'Sent',         dot: '#fbbf24' },
-  DELIVERED:    { cls: 'badge-blue',   label: 'Delivered',    dot: '#60a5fa' },
-  ACKNOWLEDGED: { cls: 'badge-purple', label: 'Acknowledged', dot: '#a78bfa' },
-  CLOSED:       { cls: 'badge-green',  label: 'Closed',       dot: '#34d399' },
+  return <span className={`badge ${cfg} text-[10px] font-bold uppercase`}>{severity}</span>;
 };
 
 const AlertStatusBadge = ({ status }) => {
-  const cfg = ALERT_STATUS_CFG[status?.toUpperCase()] ?? { cls: 'badge-gray', label: status ?? '—', dot: '#9ca3af' };
-  return (
-    <span className={`badge ${cfg.cls} flex items-center gap-1.5`}>
-      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: cfg.dot }} />
-      {cfg.label}
-    </span>
-  );
-};
+  const cfg = {
+    NEW:          { cls: 'badge-red',    label: 'New'          },
+    SENT:         { cls: 'badge-yellow', label: 'Sent'         },
+    DELIVERED:    { cls: 'badge-blue',   label: 'Delivered'    },
+    ACKNOWLEDGED: { cls: 'badge-purple', label: 'Acknowledged' },
+    CLOSED:       { cls: 'badge-green',  label: 'Closed'       },
+  }[status?.toUpperCase()] ?? { cls: 'badge-gray', label: status };
 
-// ─── Badge: Notification Status ───────────────────────────────────────────────
-const NOTIF_STATUS_CFG = {
-  PENDING:   { cls: 'badge-yellow', label: 'Pending' },
-  SENT:      { cls: 'badge-blue',   label: 'Sent' },
-  DELIVERED: { cls: 'badge-green',  label: 'Delivered' },
-  FAILED:    { cls: 'badge-red',    label: 'Failed' },
+  return <span className={`badge ${cfg.cls} text-[10px] font-semibold`}>{cfg.label}</span>;
 };
 
 const NotifStatusBadge = ({ status }) => {
-  const cfg = NOTIF_STATUS_CFG[status?.toUpperCase()] ?? { cls: 'badge-gray', label: status ?? '—' };
-  return <span className={`badge ${cfg.cls}`}>{cfg.label}</span>;
+  const cfg = {
+    SENT:      { cls: 'badge-green',  label: 'Sent'      },
+    PENDING:   { cls: 'badge-yellow', label: 'Pending'   },
+    DELIVERED: { cls: 'badge-blue',   label: 'Delivered' },
+    FAILED:    { cls: 'badge-red',    label: 'Failed'    },
+  }[status?.toUpperCase()] ?? { cls: 'badge-gray', label: status };
+
+  return <span className={`badge ${cfg.cls} text-[10px] font-semibold`}>{cfg.label}</span>;
 };
 
-// ─── Skeleton row ─────────────────────────────────────────────────────────────
+// ─── Table skeleton row ────────────────────────────────────────────────────────
 const SkeletonRow = ({ cols = 8 }) => (
   <tr>
     {Array.from({ length: cols }).map((_, i) => (
-      <td key={i} className="px-4 py-3">
-        <div className="skeleton h-4 rounded w-3/4" />
+      <td key={i} className="py-3 px-4">
+        <div className="skeleton h-4 rounded w-full" />
       </td>
     ))}
   </tr>
@@ -183,8 +174,12 @@ const SEV_BORDER = {
   LOW:      'border-l-green-500',
 };
 
-const AlertCard = ({ alert }) => {
+const AlertCard = ({ alert, onAcknowledge, onClose, isActionLoading }) => {
   const borderCls = SEV_BORDER[alert.severity?.toUpperCase()] ?? 'border-l-gray-600';
+  const statusUpper = alert.status?.toUpperCase() || '';
+  const canAck = ['NEW', 'SENT', 'DELIVERED'].includes(statusUpper);
+  const canClose = statusUpper === 'ACKNOWLEDGED';
+
   return (
     <div
       className={`bg-surface-2 rounded-xl p-3.5 border border-[#1F2937] border-l-2 ${borderCls}`}
@@ -208,10 +203,34 @@ const AlertCard = ({ alert }) => {
         <p className="text-[10px] text-gray-500 mb-2 line-clamp-2">{alert.message}</p>
       )}
 
-      {/* Footer row */}
-      <div className="flex items-center justify-between gap-2">
-        <AlertStatusBadge status={alert.status} />
-        <span className="text-[10px] text-gray-600 font-mono">{fmtTime(alert.createdAt)}</span>
+      {/* Footer row with status & action buttons */}
+      <div className="flex items-center justify-between gap-2 pt-1 border-t border-[#1F2937]/50">
+        <div className="flex items-center gap-2">
+          <AlertStatusBadge status={alert.status} />
+          <span className="text-[10px] text-gray-600 font-mono">{fmtTime(alert.createdAt)}</span>
+        </div>
+
+        {canAck && onAcknowledge && (
+          <button
+            onClick={() => onAcknowledge(alert.alertId)}
+            disabled={isActionLoading}
+            className="btn btn-xs bg-purple-600/80 text-white hover:bg-purple-600 disabled:opacity-50 flex items-center gap-1 text-[11px] py-1 px-2"
+          >
+            <RiCheckLine className="w-3 h-3" />
+            {isActionLoading ? '…' : 'Acknowledge'}
+          </button>
+        )}
+
+        {canClose && onClose && (
+          <button
+            onClick={() => onClose(alert.alertId, alert.status)}
+            disabled={isActionLoading}
+            className="btn btn-xs bg-green-600/80 text-white hover:bg-green-600 disabled:opacity-50 flex items-center gap-1 text-[11px] py-1 px-2"
+          >
+            <RiCloseLine className="w-3 h-3" />
+            {isActionLoading ? '…' : 'Close'}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -223,11 +242,12 @@ export const Monitoring = () => {
   const { notify } = useNotification();
 
   // ── State ─────────────────────────────────────────────────────────────────
-  const [patientRows,   setPatientRows]   = useState([]); // patients enriched with vitals + health score
-  const [activeAlerts,  setActiveAlerts]  = useState([]);
-  const [allAlerts,     setAllAlerts]     = useState([]);
-  const [notifications, setNotifications] = useState([]);
-  const [lastUpdated,   setLastUpdated]   = useState(null);
+  const [patientRows,     setPatientRows]     = useState([]); // patients enriched with vitals + health score
+  const [activeAlerts,    setActiveAlerts]    = useState([]);
+  const [allAlerts,       setAllAlerts]       = useState([]);
+  const [notifications,   setNotifications]   = useState([]);
+  const [lastUpdated,     setLastUpdated]     = useState(null);
+  const [actionLoadingId, setActionLoadingId] = useState(null);
 
   const [patientsLoading, setPatientsLoading] = useState(true);
   const [alertsLoading,   setAlertsLoading]   = useState(true);
@@ -266,7 +286,7 @@ export const Monitoring = () => {
     }
   }, []);
 
-  // ── Fetch alerts ───────────────────────────────────────────────────────
+  // ── Fetch alerts (Declared BEFORE useNotificationStream) ────────────────
   const fetchAlerts = useCallback(async () => {
     try {
       const [activeRes, allRes] = await Promise.allSettled([
@@ -304,10 +324,12 @@ export const Monitoring = () => {
 
   // ── Alert Acknowledge Handler ──────────────────────────────────────────
   const handleAcknowledgeAlert = async (alertId, ackBy) => {
+    if (!alertId || actionLoadingId === alertId) return;
+    setActionLoadingId(alertId);
     try {
-      const name = ackBy || user?.email || user?.name || 'Dr. Admin';
+      const name = ackBy || user?.name || user?.preferred_username || user?.username || user?.email || 'Dr. Sarah Jenkins';
       await alertService.acknowledge(alertId, name);
-      notify.success('Alert Acknowledged', `Alert ${alertId} acknowledged.`);
+      notify.success('Alert Acknowledged', `Alert ${alertId} acknowledged by ${name}.`);
       await refresh();
     } catch (err) {
       notify.error('Acknowledge Failed', err?.response?.data?.message || err.message);
@@ -315,15 +337,46 @@ export const Monitoring = () => {
   };
 
   // ── Alert Close Handler ────────────────────────────────────────────────
-  const handleCloseAlert = async (alertId) => {
+  const handleCloseAlert = async (alertId, currentStatus) => {
+    if (!alertId || actionLoadingId === alertId) return;
+    // Enforce lifecycle: must be ACKNOWLEDGED before CLOSED
+    if (currentStatus?.toUpperCase() !== 'ACKNOWLEDGED') {
+      notify.warning(
+        'Cannot Close Alert',
+        'Alert must be acknowledged before it can be closed. Please acknowledge it first.'
+      );
+      return;
+    }
+    setActionLoadingId(alertId);
     try {
       await alertService.close(alertId);
       notify.success('Alert Closed', `Alert ${alertId} has been closed.`);
       await refresh();
     } catch (err) {
       notify.error('Close Failed', err?.response?.data?.message || err.message);
+    } finally {
+      setActionLoadingId(null);
     }
   };
+
+  // ── SSE: receive real-time notification pushes from notification-stream ─
+  useNotificationStream(
+    useCallback((incoming) => {
+      // Prepend the new notification to local state immediately without waiting for poll
+      setNotifications((prev) => {
+        const exists = prev.some(
+          (n) => n.notificationId === incoming.notificationId
+        );
+        if (exists) return prev;
+        return [incoming, ...prev].slice(0, 50); // keep last 50
+      });
+      // Also trigger an alerts refresh so the dashboard stays in sync
+      if (isMountedRef.current) {
+        fetchAlerts();
+      }
+    }, [fetchAlerts]),
+    true
+  );
 
   // ── Mount / unmount ────────────────────────────────────────────────────
   useEffect(() => {
@@ -393,6 +446,27 @@ export const Monitoring = () => {
     : avgHealthScore < 75  ? 'orange'
     : 'red';
 
+  // ── Average Response Time (acknowledgedAt - createdAt) in minutes ──────
+  const acknowledgedAlerts = allAlerts.filter(
+    (a) => a.acknowledgedAt != null && a.createdAt != null
+  );
+  const avgResponseMinutes =
+    acknowledgedAlerts.length > 0
+      ? Math.round(
+          acknowledgedAlerts.reduce((acc, a) => {
+            const diffMs =
+              new Date(a.acknowledgedAt).getTime() - new Date(a.createdAt).getTime();
+            return acc + (diffMs > 0 ? diffMs / 60000 : 0);
+          }, 0) / acknowledgedAlerts.length
+        )
+      : null;
+  const avgResponseLabel =
+    avgResponseMinutes == null
+      ? '—'
+      : avgResponseMinutes < 60
+      ? `${avgResponseMinutes}m`
+      : `${Math.round(avgResponseMinutes / 60)}h ${avgResponseMinutes % 60}m`;
+
   // ── Render ─────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6" style={{ animation: 'fadeIn 0.3s ease' }}>
@@ -430,7 +504,7 @@ export const Monitoring = () => {
       </div>
 
       {/* ══ Summary Cards ════════════════════════════════════════════════ */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
         <SummaryCard
           label="Online Patients"
           value={patientRows.length}
@@ -462,6 +536,19 @@ export const Monitoring = () => {
           icon={RiShieldCheckLine}
           accentColor={avgAccent}
           loading={patientsLoading}
+        />
+        <SummaryCard
+          label="Avg Response Time"
+          value={avgResponseLabel}
+          sub={`${acknowledgedAlerts.length} acknowledged alerts`}
+          icon={RiRefreshLine}
+          accentColor={
+            avgResponseMinutes == null ? 'cyan'
+            : avgResponseMinutes <= 5   ? 'green'
+            : avgResponseMinutes <= 15  ? 'yellow'
+            : 'red'
+          }
+          loading={alertsLoading}
         />
       </div>
 
@@ -663,7 +750,13 @@ export const Monitoring = () => {
           ) : (
             <div className="space-y-2.5 overflow-y-auto custom-scroll max-h-[640px] pr-0.5">
               {recentAlerts.map((alert, idx) => (
-                <AlertCard key={alert.alertId ?? idx} alert={alert} />
+                <AlertCard
+                  key={alert.alertId ?? idx}
+                  alert={alert}
+                  onAcknowledge={handleAcknowledgeAlert}
+                  onClose={handleCloseAlert}
+                  isActionLoading={actionLoadingId === alert.alertId}
+                />
               ))}
             </div>
           )}
@@ -790,7 +883,10 @@ export const Monitoring = () => {
       <CriticalAlertModal
         criticalAlerts={criticalAlerts}
         onAcknowledge={handleAcknowledgeAlert}
-        onClose={handleCloseAlert}
+        onClose={(alertId) => {
+          const alert = [...activeAlerts, ...allAlerts].find(a => a.alertId === alertId);
+          return handleCloseAlert(alertId, alert?.status);
+        }}
         user={user}
       />
 

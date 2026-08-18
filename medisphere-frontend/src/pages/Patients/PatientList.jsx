@@ -57,7 +57,20 @@ export const PatientList = () => {
     setLoadError(null);
 
     try {
-      const res = await patientService.getAllPatients();
+      const userInfo = JSON.parse(localStorage.getItem('user_info') || '{}');
+      const isDoctor = (userInfo.roles || []).includes('DOCTOR');
+      let res;
+
+      if (isDoctor) {
+        const docId = userInfo.username || 'doctor';
+        res = await patientService.getPatientsByDoctor(docId);
+        if (!res.data || !res.data.length) {
+          res = await patientService.getAllPatients();
+        }
+      } else {
+        res = await patientService.getAllPatients();
+      }
+
       setPatients(res.data || []);
     } catch {
       setLoadError('Backend service is unavailable.');
@@ -114,7 +127,7 @@ export const PatientList = () => {
           <button onClick={fetchPatients} className="btn-outline btn-sm" disabled={loading}>
             <RiRefreshLine className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
-          <button onClick={() => navigate('/patients/register')} className="btn-primary btn-sm" id="register-patient-btn">
+          <button onClick={() => navigate('/doctor/patient-registration')} className="btn-primary btn-sm" id="register-patient-btn">
             <RiUserAddLine className="w-4 h-4" /> Register Patient
           </button>
         </div>
@@ -168,7 +181,7 @@ export const PatientList = () => {
             <RiUserLine className="w-16 h-16 text-gray-700 mx-auto" />
             <p className="text-lg font-bold text-gray-400">No Patients Found</p>
             <p className="text-sm text-gray-500">No patient records exist in the database.</p>
-            <button onClick={() => navigate('/patients/register')} className="btn-primary btn-sm mt-2">Register First Patient</button>
+            <button onClick={() => navigate('/doctor/patient-registration')} className="btn-primary btn-sm mt-2">Register First Patient</button>
           </div>
         ) : (
           <>
@@ -199,7 +212,7 @@ export const PatientList = () => {
                         <tr
                           key={p.id || p.patientId}
                           className="cursor-pointer"
-                          onClick={() => navigate(`/patients/${p.patientId || p.id}`)}
+                          onClick={() => navigate(`/doctor/patients/${p.patientId || p.id}`)}
                         >
                           <td>
                             <div className="flex items-center gap-3">
@@ -221,14 +234,14 @@ export const PatientList = () => {
                             <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
                               <button
                                 title="Patient Details"
-                                onClick={() => navigate(`/patients/${p.patientId || p.id}`)}
+                                onClick={() => navigate(`/doctor/patients/${p.patientId || p.id}`)}
                                 className="p-1.5 rounded-lg text-blue-400 hover:bg-blue-500/10 transition-colors"
                               >
                                 <RiEyeLine className="w-4 h-4" />
                               </button>
                               <button
                                 title="Open 360"
-                                onClick={() => navigate(`/patient360?patientId=${p.patientId || p.id}`)}
+                                onClick={() => navigate(`/doctor/patient360?patientId=${p.patientId || p.id}`)}
                                 className="p-1.5 rounded-lg text-gray-400 hover:bg-surface-2 transition-colors"
                               >
                                 <RiHeartPulseLine className="w-4 h-4" />

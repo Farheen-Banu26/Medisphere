@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { RiRobot2Line, RiRefreshLine, RiAlertLine, RiLoader4Line, RiHeartPulseLine } from 'react-icons/ri';
 import { patientService } from '../../services/patientService';
 import { twinService } from '../../services/twinService';
@@ -66,7 +67,7 @@ const RiskDonut = ({ label, value, riskLabel, description, tone = 'low' }) => {
 
   return (
     <div className="flex flex-col items-center justify-center rounded-2xl border border-white/10 bg-[#08111F] p-4 text-center">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-gray-500">{label}</p>
+      <div className="text-[11px] font-semibold uppercase tracking-[0.25em] text-gray-500">{label}</div>
       <div className="relative mt-4 h-36 w-36 flex-shrink-0">
         <svg viewBox="0 0 140 140" className="h-36 w-36 -rotate-90">
           <circle cx="70" cy="70" r={radius} stroke={trackColor} strokeWidth="12" fill="none" />
@@ -87,16 +88,19 @@ const RiskDonut = ({ label, value, riskLabel, description, tone = 'low' }) => {
           <span className={`mt-1 text-[11px] font-semibold uppercase tracking-[0.25em] ${tone === 'high' ? 'text-red-200' : 'text-emerald-200'}`}>{riskLabel || '—'}</span>
         </div>
       </div>
-      <p className="mt-4 text-sm leading-6 text-gray-400">{description}</p>
+      <div className="mt-4 text-sm leading-6 text-gray-400">{description}</div>
     </div>
   );
 };
 
 export const PredictionDashboard = () => {
   const { notify } = useNotification();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const [patients, setPatients] = useState([]);
-  const [selectedPatientId, setSelectedPatientId] = useState('');
+  const [selectedPatientId, setSelectedPatientId] = useState(searchParams.get('patientId') || '');
   const [patient, setPatient] = useState(null);
   const [twin, setTwin] = useState(null);
   const [vitals, setVitals] = useState(null);
@@ -108,6 +112,22 @@ export const PredictionDashboard = () => {
   const [predicting, setPredicting] = useState(false);
   const [error, setError] = useState(null);
   const [predictionError, setPredictionError] = useState(null);
+
+  useEffect(() => {
+    const pid = searchParams.get('patientId') || '';
+    if (pid !== selectedPatientId) {
+      setSelectedPatientId(pid);
+    }
+  }, [searchParams]);
+
+  const handlePatientSelect = (pid) => {
+    setSelectedPatientId(pid);
+    if (pid) {
+      navigate(`${location.pathname}?patientId=${encodeURIComponent(pid)}`, { replace: true });
+    } else {
+      navigate(location.pathname, { replace: true });
+    }
+  };
 
   const fetchPatients = useCallback(async () => {
     setLoading(true);
@@ -134,12 +154,13 @@ export const PredictionDashboard = () => {
     setPredictionError(null);
 
     try {
-      const [patientRes, twinRes, vitalsRes, vitalsHistoryRes, labRes] = await Promise.allSettled([
+      const [patientRes, twinRes, vitalsRes, vitalsHistoryRes, labRes, predRes] = await Promise.allSettled([
         patientService.getPatientById(patientId),
         twinService.getTwin(patientId),
         vitalsService.getLatestVitals(patientId),
         vitalsService.getVitalsByPatient(patientId),
         labService.getLabs(patientId),
+        predictionService.createPrediction(patientId),
       ]);
 
       if (patientRes.status === 'fulfilled') setPatient(patientRes.value.data || null);
@@ -147,6 +168,11 @@ export const PredictionDashboard = () => {
       if (vitalsRes.status === 'fulfilled') setVitals(vitalsRes.value.data || null);
       if (vitalsHistoryRes.status === 'fulfilled') setVitalsHistory(vitalsHistoryRes.value.data || []);
       if (labRes.status === 'fulfilled') setLabs(labRes.value.data || null);
+      else setLabs(null); // Gracefully handle HTTP 404 / 500 lab service errors without retrying
+
+      if (predRes.status === 'fulfilled' && predRes.value?.data) {
+        setPrediction(predRes.value.data);
+      }
 
       if (patientRes.status === 'rejected') throw patientRes.reason;
     } catch (err) {
@@ -190,8 +216,8 @@ export const PredictionDashboard = () => {
     }
   };
 
-  const patientOptions = useMemo(() => patients.map((p) => ({
-    value: p.patientId || p.id,
+  const patientOptions = useMemo(() => patients.map((p, idx) => ({
+    value: p.patientId || p.id || `p-${idx}`,
     label: `${p.firstName || ''} ${p.lastName || ''}`.trim() || 'Unnamed Patient',
   })), [patients]);
 
@@ -216,7 +242,7 @@ export const PredictionDashboard = () => {
     { label: 'SpO₂', value: spo2Value != null ? `${formatDisplayValue(spo2Value)}%` : '—' },
     { label: 'Temperature', value: temperatureValue != null ? `${formatDisplayValue(temperatureValue)} °F` : '—' },
     { label: 'Health Score', value: healthScoreValue != null ? formatDisplayValue(healthScoreValue) : '—' },
-    { label: 'Labs', value: labs ? 'Available' : '—' },
+    { label: 'Labs', value: labs && Object.keys(labs).length > 0 ? 'Available' : 'No lab data available' },
   ], [ageValue, bloodPressureValue, bmiValue, healthScoreValue, labs, patientId, patientName, spo2Value, temperatureValue, vitals]);
 
   const riskFactors = useMemo(() => {
@@ -229,9 +255,9 @@ export const PredictionDashboard = () => {
     addFactor('Age', ageValue != null ? `${ageValue} years` : null);
     addFactor('BMI', bmiValue);
     addFactor('Blood Pressure', bloodPressureValue);
-    addFactor('Cholesterol', getFirstValue(labs, ['cholesterol', 'totalCholesterol', 'cholestrol']));
-    addFactor('Blood Glucose', getFirstValue(labs, ['bloodGlucose', 'glucose', 'fastingGlucose']));
-    addFactor('HbA1c', getFirstValue(labs, ['hba1c', 'HbA1c', 'ha1c']));
+    addFactor('Cholesterol', labs ? getFirstValue(labs, ['cholesterol', 'totalCholesterol', 'cholestrol']) : 'No lab data available');
+    addFactor('Blood Glucose', labs ? getFirstValue(labs, ['bloodGlucose', 'glucose', 'fastingGlucose']) : 'No lab data available');
+    addFactor('HbA1c', labs ? getFirstValue(labs, ['hba1c', 'HbA1c', 'ha1c']) : 'No lab data available');
     addFactor('Smoking History', getFirstValue(twin, ['smokingHistory', 'smoking', 'smokes']) || getFirstValue(patient, ['smokingHistory', 'smoking', 'smokes']));
     addFactor('Family History', getFirstValue(twin, ['familyHistory', 'familyHistoryPresent']) || getFirstValue(patient, ['familyHistory', 'familyHistoryPresent']));
 
@@ -264,12 +290,12 @@ export const PredictionDashboard = () => {
     return [];
   }, [vitals, vitalsHistory]);
 
-  const heartDiseaseProbability = prediction?.heartDiseaseProbability != null ? Number(prediction.heartDiseaseProbability) : null;
-  const diabetesProbability = prediction?.diabetesProbability != null ? Number(prediction.diabetesProbability) : null;
+  const heartDiseaseProbability = getFirstValue(prediction, ['heartDiseaseProbability', 'heartDiseaseRisk', 'heartRisk', 'probability']) ?? (prediction?.heartDiseasePrediction != null ? (prediction.heartDiseasePrediction.toLowerCase().includes('high') ? 0.85 : 0.15) : null);
+  const diabetesProbability = getFirstValue(prediction, ['diabetesProbability', 'diabetesRisk', 'diabetesProbability']) ?? (prediction?.diabetesPrediction != null ? (prediction.diabetesPrediction.toLowerCase().includes('high') ? 0.75 : 0.12) : null);
   const heartDiseaseLabel = getClinicalLabel(prediction?.heartDiseasePrediction, heartDiseaseProbability);
   const diabetesLabel = getClinicalLabel(prediction?.diabetesPrediction, diabetesProbability);
-  const heartDiseasePercent = heartDiseaseProbability != null ? Math.max(0, Math.min(100, heartDiseaseProbability * 100)) : null;
-  const diabetesPercent = diabetesProbability != null ? Math.max(0, Math.min(100, diabetesProbability * 100)) : null;
+  const heartDiseasePercent = heartDiseaseProbability != null ? Math.max(0, Math.min(100, heartDiseaseProbability <= 1 ? heartDiseaseProbability * 100 : heartDiseaseProbability)) : null;
+  const diabetesPercent = diabetesProbability != null ? Math.max(0, Math.min(100, diabetesProbability <= 1 ? diabetesProbability * 100 : diabetesProbability)) : null;
 
   return (
     <div className="space-y-6">
@@ -280,13 +306,19 @@ export const PredictionDashboard = () => {
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          {selectedPatientId && (
+            <div className="flex items-center gap-1.5 pb-1">
+              <button onClick={() => navigate(`/doctor/care-plans-overview?patientId=${encodeURIComponent(selectedPatientId)}`)} className="btn-outline btn-sm">Care Plans</button>
+              <button onClick={() => navigate(`/doctor/clinical-insights?patientId=${encodeURIComponent(selectedPatientId)}`)} className="btn-outline btn-sm">Clinical Insights</button>
+            </div>
+          )}
           <div className="min-w-[240px]">
             <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.3em] text-gray-500">Patient</label>
             <select
               className="form-select w-full"
               aria-label="Select patient"
               value={selectedPatientId}
-              onChange={(e) => setSelectedPatientId(e.target.value)}
+              onChange={(e) => handlePatientSelect(e.target.value)}
             >
               <option value="">Select a patient</option>
               {patientOptions.map((option) => (
@@ -314,8 +346,8 @@ export const PredictionDashboard = () => {
           <div className="flex items-start gap-3">
             <RiAlertLine className="w-5 h-5 text-amber-300 mt-1" />
             <div>
-              <p className="text-sm font-semibold text-white">Unable to load data</p>
-              <p className="text-sm text-gray-400">{error}</p>
+              <div className="text-sm font-semibold text-white">Unable to load data</div>
+              <div className="text-sm text-gray-400 mt-0.5">{error}</div>
             </div>
           </div>
         </div>
@@ -343,8 +375,8 @@ export const PredictionDashboard = () => {
           <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {healthSnapshot.map((item) => (
               <div key={item.label} className="rounded-2xl border border-white/10 bg-[#08111F] p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-gray-500">{item.label}</p>
-                <p className="mt-2 text-sm font-semibold text-white">{item.value}</p>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.25em] text-gray-500">{item.label}</div>
+                <div className="mt-2 text-sm font-semibold text-white">{item.value}</div>
               </div>
             ))}
           </div>

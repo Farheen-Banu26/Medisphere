@@ -306,11 +306,11 @@ export const Dashboard = () => {
             <div className="flex items-center gap-3 pt-2 border-t border-[#1F2937]">
               <button
                 className="btn-primary btn-sm"
-                onClick={() => twin360 && navigate(`/digital-twin?patientId=${patient?.patientId}`)}
+                onClick={() => twin360 && navigate(`/doctor/health-twin?patientId=${patient?.patientId}`)}
               >
                 <RiRobot2Line className="w-4 h-4" /> View Full Twin
               </button>
-              <button className="btn-outline btn-sm" onClick={() => navigate('/patient360')}>
+              <button className="btn-outline btn-sm" onClick={() => navigate(patient?.patientId ? `/doctor/patient360?patientId=${patient.patientId}` : '/doctor/patient360')}>
                 <RiArrowRightLine className="w-4 h-4" /> Patient 360
               </button>
             </div>

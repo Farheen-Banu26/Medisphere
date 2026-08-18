@@ -26,6 +26,7 @@ import com.medisphere.careplan_service.dto.OutcomeSummaryResponse;
 import com.medisphere.careplan_service.dto.OutcomeTrackingRequest;
 import com.medisphere.careplan_service.dto.TodayCarePlanResponse;
 import com.medisphere.careplan_service.dto.UpdateAdherenceRequest;
+import com.medisphere.careplan_service.dto.UpdateCarePlanRequest;
 import com.medisphere.careplan_service.dto.UpdateDoctorNotesRequest;
 import com.medisphere.careplan_service.dto.UpdateProgressRequest;
 import com.medisphere.careplan_service.dto.ValidationSummaryResponse;
@@ -60,6 +61,11 @@ public class CarePlanController {
         this.carePlanService = carePlanService;
     }
 
+    @org.springframework.web.bind.annotation.ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
+    public ResponseEntity<String> handleResponseStatusException(org.springframework.web.server.ResponseStatusException ex) {
+        return ResponseEntity.status(ex.getStatusCode()).body(ex.getReason());
+    }
+
     /**
      * POST /api/careplans/generate
      *
@@ -85,13 +91,49 @@ public class CarePlanController {
     }
 
     /**
+     * GET /api/careplans/all
+     *
+     * Returns all care plans across all patients.
+     */
+    @GetMapping("/all")
+    public ResponseEntity<List<CarePlan>> getAllCarePlans() {
+        List<CarePlan> plans = carePlanService.getAllCarePlans();
+        return ResponseEntity.ok(plans);
+    }
+
+    /**
+     * GET /api/careplans/approved
+     *
+     * Returns all care plans with doctorStatus == APPROVED.
+     */
+    @GetMapping("/approved")
+    public ResponseEntity<List<CarePlan>> getApprovedCarePlans() {
+        List<CarePlan> approved = carePlanService.getApprovedCarePlans();
+        return ResponseEntity.ok(approved);
+    }
+
+    /**
+     * GET /api/careplans/rejected
+     *
+     * Returns all care plans with doctorStatus == REJECTED.
+     */
+    @GetMapping("/rejected")
+    public ResponseEntity<List<CarePlan>> getRejectedCarePlans() {
+        List<CarePlan> rejected = carePlanService.getRejectedCarePlans();
+        return ResponseEntity.ok(rejected);
+    }
+
+    /**
      * GET /api/careplans/{patientId}
      *
      * Returns the most recent care plan for the given patient (all status levels for doctor/admin view).
      * Returns 404 if no care plan exists.
      */
     @GetMapping("/{patientId}")
-    public ResponseEntity<CarePlan> getCarePlanByPatient(@PathVariable String patientId) {
+    public ResponseEntity<CarePlan> getCarePlanByPatient(
+            @PathVariable String patientId,
+            jakarta.servlet.http.HttpServletRequest request) {
+        carePlanService.verifyPatientResourceAccess(patientId, request);
         CarePlan plan = carePlanService.getLatestByPatient(patientId);
         if (plan == null) {
             throw new CarePlanNotFoundException(
@@ -109,7 +151,10 @@ public class CarePlanController {
      * Returns 404 if no APPROVED care plan exists.
      */
     @GetMapping("/patient/{patientId}")
-    public ResponseEntity<CarePlan> getLatestApprovedCarePlan(@PathVariable String patientId) {
+    public ResponseEntity<CarePlan> getLatestApprovedCarePlan(
+            @PathVariable String patientId,
+            jakarta.servlet.http.HttpServletRequest request) {
+        carePlanService.verifyPatientResourceAccess(patientId, request);
         CarePlan approved = carePlanService.getLatestApprovedCarePlan(patientId);
         return ResponseEntity.ok(approved);
     }
@@ -121,7 +166,10 @@ public class CarePlanController {
      * Returns 404 if no APPROVED care plan exists.
      */
     @GetMapping("/patient/{patientId}/history")
-    public ResponseEntity<List<CarePlan>> getApprovedCarePlanHistory(@PathVariable String patientId) {
+    public ResponseEntity<List<CarePlan>> getApprovedCarePlanHistory(
+            @PathVariable String patientId,
+            jakarta.servlet.http.HttpServletRequest request) {
+        carePlanService.verifyPatientResourceAccess(patientId, request);
         List<CarePlan> history = carePlanService.getApprovedCarePlanHistory(patientId);
         return ResponseEntity.ok(history);
     }
@@ -133,7 +181,10 @@ public class CarePlanController {
      * Returns 404 if no APPROVED care plan exists.
      */
     @GetMapping("/patient/{patientId}/today")
-    public ResponseEntity<TodayCarePlanResponse> getTodayCarePlanSummary(@PathVariable String patientId) {
+    public ResponseEntity<TodayCarePlanResponse> getTodayCarePlanSummary(
+            @PathVariable String patientId,
+            jakarta.servlet.http.HttpServletRequest request) {
+        carePlanService.verifyPatientResourceAccess(patientId, request);
         TodayCarePlanResponse summary = carePlanService.getTodayCarePlanSummary(patientId);
         return ResponseEntity.ok(summary);
     }
@@ -163,6 +214,20 @@ public class CarePlanController {
             @PathVariable String carePlanId,
             @Valid @RequestBody DoctorRejectRequest request) {
         CarePlan updated = carePlanService.rejectCarePlanByDoctor(carePlanId, request);
+        return ResponseEntity.ok(updated);
+    }
+
+    /**
+     * PUT /api/careplans/{carePlanId}/update
+     *
+     * Doctor updates any or all content sections of a care plan prior to approval.
+     * Body: UpdateCarePlanRequest
+     */
+    @PutMapping("/{carePlanId}/update")
+    public ResponseEntity<CarePlan> updateCarePlan(
+            @PathVariable String carePlanId,
+            @RequestBody UpdateCarePlanRequest request) {
+        CarePlan updated = carePlanService.updateCarePlan(carePlanId, request);
         return ResponseEntity.ok(updated);
     }
 

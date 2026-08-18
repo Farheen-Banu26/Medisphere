@@ -21,7 +21,7 @@ public class WearableScheduler {
     private final WearableService wearableService;
     private final PatientService patientService;
     private final RandomVitalsGenerator vitalsGenerator;
-    private volatile boolean running = false;
+    private volatile boolean running = true;
 
     public WearableScheduler(WearableService wearableService, PatientService patientService) {
         this.wearableService = wearableService;

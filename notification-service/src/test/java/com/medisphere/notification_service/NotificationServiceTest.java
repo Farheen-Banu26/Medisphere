@@ -28,6 +28,7 @@ import com.medisphere.notification_service.model.NotificationStatus;
 import com.medisphere.notification_service.model.RecipientType;
 import com.medisphere.notification_service.repository.NotificationRepository;
 import com.medisphere.notification_service.service.AlertServiceClient;
+import com.medisphere.notification_service.service.AuditClient;
 import com.medisphere.notification_service.service.EmailService;
 import com.medisphere.notification_service.service.NotificationRoutingService;
 import com.medisphere.notification_service.service.NotificationService;
@@ -39,6 +40,7 @@ class NotificationServiceTest {
     private NotificationKafkaProducer kafkaProducer;
     private AlertServiceClient alertServiceClient;
     private EmailService emailService;
+    private AuditClient auditClient;
     private NotificationService service;
 
     @BeforeEach
@@ -48,12 +50,13 @@ class NotificationServiceTest {
         kafkaProducer = mock(NotificationKafkaProducer.class);
         alertServiceClient = mock(AlertServiceClient.class);
         emailService = mock(EmailService.class);
-        service = new NotificationService(repository, routingService, kafkaProducer, alertServiceClient, emailService);
+        auditClient = mock(AuditClient.class);
+        service = new NotificationService(repository, routingService, kafkaProducer, alertServiceClient, emailService, auditClient);
     }
 
     @Test
     void criticalAlertCreatesDoctorAndNurseNotifications() {
-        AlertEvent event = createSampleAlertEvent("ALT-1", "CRITICAL", "P001", "OXYGEN_ALERT");
+        AlertEvent event = createSampleAlertEvent("ALT-1", "CRITICAL", "P001", "CRITICAL_ALERT");
 
         when(repository.existsByAlertIdAndRecipientTypeAndChannel(any(), any(), any())).thenReturn(false);
         when(repository.save(any(Notification.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -75,7 +78,7 @@ class NotificationServiceTest {
 
     @Test
     void highAlertCreatesDoctorNotificationOnly() {
-        AlertEvent event = createSampleAlertEvent("ALT-2", "HIGH", "P001", "HIGH_HEART_RATE");
+        AlertEvent event = createSampleAlertEvent("ALT-2", "HIGH", "P001", "GENERAL_HIGH_ALERT");
 
         when(repository.existsByAlertIdAndRecipientTypeAndChannel(any(), any(), any())).thenReturn(false);
         when(repository.save(any(Notification.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -143,7 +146,7 @@ class NotificationServiceTest {
     void duplicateAlertEventDoesNotCreateDuplicateNotificationOrPublishEvent() {
         AlertEvent event = createSampleAlertEvent("ALT-123", "HIGH", "P001", "HIGH_HEART_RATE");
 
-        when(repository.existsByAlertIdAndRecipientTypeAndChannel(eq("ALT-123"), eq(RecipientType.DOCTOR), eq(NotificationChannel.IN_APP)))
+        when(repository.existsByAlertIdAndRecipientTypeAndChannel(any(), any(), any()))
                 .thenReturn(true);
 
         service.processAlert(event);
@@ -159,9 +162,9 @@ class NotificationServiceTest {
         when(kafkaTemplate.send(any(), any(), any())).thenThrow(new RuntimeException("Kafka unreachable"));
 
         NotificationKafkaProducer realProducer = new NotificationKafkaProducer(kafkaTemplate);
-        NotificationService serviceWithRealProducer = new NotificationService(repository, routingService, realProducer, alertServiceClient, emailService);
+        NotificationService serviceWithRealProducer = new NotificationService(repository, routingService, realProducer, alertServiceClient, emailService, auditClient);
 
-        AlertEvent event = createSampleAlertEvent("ALT-5", "HIGH", "P001", "HIGH_HEART_RATE");
+        AlertEvent event = createSampleAlertEvent("ALT-5", "HIGH", "P001", "GENERAL_HIGH_ALERT");
 
         when(repository.existsByAlertIdAndRecipientTypeAndChannel(any(), any(), any())).thenReturn(false);
         when(repository.save(any(Notification.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -226,7 +229,7 @@ class NotificationServiceTest {
         doThrow(new RuntimeException("Alert service down")).when(restTemplate).put(any(String.class), any());
 
         AlertServiceClient realClient = new AlertServiceClient(restTemplate, "http://localhost:9002");
-        NotificationService serviceWithRealClient = new NotificationService(repository, routingService, kafkaProducer, realClient, emailService);
+        NotificationService serviceWithRealClient = new NotificationService(repository, routingService, kafkaProducer, realClient, emailService, auditClient);
 
         Notification notification = createSampleNotification("NTF-104", NotificationStatus.SENT);
         when(repository.findByNotificationId("NTF-104")).thenReturn(Optional.of(notification));

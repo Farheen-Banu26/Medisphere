@@ -20,9 +20,16 @@ export const AuthProvider = ({ children }) => {
       .then((auth) => {
         setAuthenticated(auth);
         setInitialized(true);
+        if (keycloak.token) {
+          localStorage.setItem('medisphere_token', keycloak.token);
+        }
 
         keycloak.onTokenExpired = () => {
-          keycloak.updateToken(30).catch(() => {
+          keycloak.updateToken(30).then(() => {
+            if (keycloak.token) {
+              localStorage.setItem('medisphere_token', keycloak.token);
+            }
+          }).catch(() => {
             console.error('Failed to refresh token');
             keycloak.logout();
           });

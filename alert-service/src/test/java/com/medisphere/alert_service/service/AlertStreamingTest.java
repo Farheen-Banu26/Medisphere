@@ -3,6 +3,7 @@ package com.medisphere.alert_service.service;
 import java.util.Collections;
 import java.util.List;
 
+import com.medisphere.alert_service.client.AuditClient;
 import com.medisphere.alert_service.client.FlaskClient;
 import com.medisphere.alert_service.client.HealthTwinClient;
 import com.medisphere.alert_service.client.PatientClient;
@@ -34,6 +35,7 @@ class AlertStreamingTest {
     private PatientClient patientClient;
     private HealthTwinClient healthTwinClient;
     private FlaskClient flaskClient;
+    private AuditClient auditClient;
     private AlertService service;
 
     @BeforeEach
@@ -43,7 +45,8 @@ class AlertStreamingTest {
         patientClient = mock(PatientClient.class);
         healthTwinClient = mock(HealthTwinClient.class);
         flaskClient = mock(FlaskClient.class);
-        service = new AlertService(repository, kafkaProducer, patientClient, healthTwinClient, flaskClient);
+        auditClient = mock(AuditClient.class);
+        service = new AlertService(repository, kafkaProducer, patientClient, healthTwinClient, flaskClient, auditClient);
     }
 
     @Test
@@ -126,7 +129,7 @@ class AlertStreamingTest {
         when(kafkaTemplate.send(any(), any(), any())).thenThrow(new RuntimeException("Kafka connection refused"));
 
         AlertKafkaProducer realProducer = new AlertKafkaProducer(kafkaTemplate);
-        AlertService serviceWithRealProducer = new AlertService(repository, realProducer, patientClient, healthTwinClient, flaskClient);
+        AlertService serviceWithRealProducer = new AlertService(repository, realProducer, patientClient, healthTwinClient, flaskClient, auditClient);
 
         when(repository.findByPatientIdAndTypeAndStatusNot(eq("P003"), eq("HIGH_HEART_RATE"), eq(AlertStatus.CLOSED)))
                 .thenReturn(Collections.emptyList());

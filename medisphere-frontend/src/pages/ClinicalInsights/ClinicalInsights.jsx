@@ -202,9 +202,9 @@ export const ClinicalInsights = () => {
     const nextValue = value.trim();
     setSelectedPatientId(nextValue);
     if (nextValue) {
-      navigate(`/clinical-insights?patientId=${encodeURIComponent(nextValue)}`, { replace: true });
+      navigate(`/doctor/clinical-insights?patientId=${encodeURIComponent(nextValue)}`, { replace: true });
     } else {
-      navigate('/clinical-insights', { replace: true });
+      navigate('/doctor/clinical-insights', { replace: true });
     }
   };
 
@@ -230,12 +230,17 @@ export const ClinicalInsights = () => {
           <p className="page-subtitle">Live clinical summary, explainability context, and risk-aware recommendations from existing backend services.</p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          {selectedPatientId && (
+            <button onClick={() => navigate(`/patient/consent?patientId=${encodeURIComponent(selectedPatientId)}`)} className="btn-outline btn-sm">
+              Consent
+            </button>
+          )}
           <div className="relative min-w-[260px]">
             <RiSearchLine className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
             <select className="form-select pl-9" aria-label="Select patient" value={selectedPatientId} onChange={(e) => handlePatientSelect(e.target.value)}>
               <option value="">Select a patient</option>
-              {patientOptions.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
+              {patientOptions.map((option, idx) => (
+                <option key={option.value || idx} value={option.value}>{option.label}</option>
               ))}
             </select>
           </div>
@@ -331,8 +336,8 @@ export const ClinicalInsights = () => {
               <div className="card-lg">
                 <p className="text-xs font-bold uppercase tracking-[0.3em] text-gray-500">Clinical Alerts</p>
                 <div className="mt-4 space-y-3">
-                  {alerts.length > 0 ? alerts.map((alert) => (
-                    <AlertCard key={alert.title} title={alert.title} description={alert.description} tone={alert.tone} />
+                  {alerts.length > 0 ? alerts.map((alert, idx) => (
+                    <AlertCard key={alert.id || `${alert.title}-${idx}`} title={alert.title} description={alert.description} tone={alert.tone} />
                   )) : (
                     <div className="rounded-2xl border border-[#1F2937] bg-[#08111F] p-6 text-sm text-gray-400">No active alerts were identified from the current backend response.</div>
                   )}

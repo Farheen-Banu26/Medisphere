@@ -23,13 +23,37 @@ public class EmailService {
     @Value("${medisphere.mail.from:noreply@medisphere.com}")
     private String fromAddress;
 
+    @Value("${spring.mail.host:smtp.example.com}")
+    private String smtpHost;
+
+    @Value("${spring.mail.username:user}")
+    private String smtpUsername;
+
     public EmailService(JavaMailSender mailSender, PatientClient patientClient) {
         this.mailSender = mailSender;
         this.patientClient = patientClient;
     }
 
+    /** Returns true only when real SMTP credentials are configured via environment variables. */
+    private boolean isSmtpConfigured() {
+        return smtpHost != null
+                && !smtpHost.isBlank()
+                && !smtpHost.equals("smtp.example.com")
+                && smtpUsername != null
+                && !smtpUsername.isBlank()
+                && !smtpUsername.equals("user");
+    }
+
     public void sendAlertEmail(Notification notification, AlertEvent event) {
         if (!"HIGH".equalsIgnoreCase(event.getSeverity()) && !"CRITICAL".equalsIgnoreCase(event.getSeverity())) {
+            return;
+        }
+
+        if (!isSmtpConfigured()) {
+            logger.info("SMTP not configured (set SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD env vars). "
+                    + "Skipping email for alert {}.", event.getAlertId());
+            notification.setEmailSent(false);
+            notification.setEmailStatus("NOT_CONFIGURED");
             return;
         }
 

@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
+import com.medisphere.alert_service.client.AuditClient;
 import com.medisphere.alert_service.client.FlaskClient;
 import com.medisphere.alert_service.client.HealthTwinClient;
 import com.medisphere.alert_service.client.PatientClient;
@@ -40,6 +41,7 @@ class AlertLifecycleTest {
     private PatientClient patientClient;
     private HealthTwinClient healthTwinClient;
     private FlaskClient flaskClient;
+    private AuditClient auditClient;
     private AlertService service;
 
     @BeforeEach
@@ -48,7 +50,8 @@ class AlertLifecycleTest {
         patientClient = mock(PatientClient.class);
         healthTwinClient = mock(HealthTwinClient.class);
         flaskClient = mock(FlaskClient.class);
-        service = new AlertService(repository, null, patientClient, healthTwinClient, flaskClient);
+        auditClient = mock(AuditClient.class);
+        service = new AlertService(repository, null, patientClient, healthTwinClient, flaskClient, auditClient);
     }
 
     @Test

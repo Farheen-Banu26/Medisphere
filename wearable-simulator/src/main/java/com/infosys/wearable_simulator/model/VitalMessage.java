@@ -10,7 +10,7 @@ public class VitalMessage {
     private Integer bpDiastolic;
     private Integer spo2;
     private Double temperature;
-    private Integer respiration;
+    private Integer respirationRate;
     private Integer steps;
     private Integer sleepHours;
     private LocalDateTime recordedAt;
@@ -19,7 +19,7 @@ public class VitalMessage {
     }
 
     public VitalMessage(String patientId, Integer heartRate, Integer bpSystolic, Integer bpDiastolic,
-                        Integer spo2, Double temperature, Integer respiration, Integer steps,
+                        Integer spo2, Double temperature, Integer respirationRate, Integer steps,
                         Integer sleepHours, LocalDateTime recordedAt) {
         this.patientId = patientId;
         this.heartRate = heartRate;
@@ -27,7 +27,7 @@ public class VitalMessage {
         this.bpDiastolic = bpDiastolic;
         this.spo2 = spo2;
         this.temperature = temperature;
-        this.respiration = respiration;
+        this.respirationRate = respirationRate;
         this.steps = steps;
         this.sleepHours = sleepHours;
         this.recordedAt = recordedAt;
@@ -82,11 +82,19 @@ public class VitalMessage {
     }
 
     public Integer getRespiration() {
-        return respiration;
+        return respirationRate;
     }
 
-    public void setRespiration(Integer respiration) {
-        this.respiration = respiration;
+    public void setRespiration(Integer respirationRate) {
+        this.respirationRate = respirationRate;
+    }
+
+    public Integer getRespirationRate() {
+        return respirationRate;
+    }
+
+    public void setRespirationRate(Integer respirationRate) {
+        this.respirationRate = respirationRate;
     }
 
     public Integer getSteps() {

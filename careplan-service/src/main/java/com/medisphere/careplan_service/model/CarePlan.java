@@ -74,8 +74,20 @@ public class CarePlan {
     /** Narrative AI recommendation summary */
     private String aiRecommendation;
 
+    /** Clinical summary narrative from Gemini / AI decision support */
+    private String clinicalSummary;
+
     /** Lifestyle advice bullet points from the recommendation engine */
     private String lifestyleAdvice;
+
+    /** List of monitoring recommendations for patient */
+    private List<String> monitoringRecommendations = new java.util.ArrayList<>();
+
+    /** Red-flag warning signs requiring urgent attention */
+    private List<String> warningSigns = new java.util.ArrayList<>();
+
+    /** Snapshot of clinical inputs (Patient Info, Vitals with recordedAt, Risk, History) used by Gemini */
+    private java.util.Map<String, Object> clinicalInputs = new java.util.LinkedHashMap<>();
 
     /** Review interval in days (e.g. 30, 60, 90) */
     private Integer reviewIntervalDays;
@@ -306,11 +318,58 @@ public class CarePlan {
     }
 
     public String getAiRecommendation() {
-        return aiRecommendation;
+        return aiRecommendation != null ? aiRecommendation : clinicalSummary;
     }
 
     public void setAiRecommendation(String aiRecommendation) {
         this.aiRecommendation = aiRecommendation;
+        if (this.clinicalSummary == null) {
+            this.clinicalSummary = aiRecommendation;
+        }
+    }
+
+    public String getClinicalSummary() {
+        return clinicalSummary != null ? clinicalSummary : aiRecommendation;
+    }
+
+    public void setClinicalSummary(String clinicalSummary) {
+        this.clinicalSummary = clinicalSummary;
+        if (this.aiRecommendation == null) {
+            this.aiRecommendation = clinicalSummary;
+        }
+    }
+
+    public List<String> getMonitoringRecommendations() {
+        if (monitoringRecommendations == null) {
+            monitoringRecommendations = new java.util.ArrayList<>();
+        }
+        return monitoringRecommendations;
+    }
+
+    public void setMonitoringRecommendations(List<String> monitoringRecommendations) {
+        this.monitoringRecommendations = monitoringRecommendations;
+    }
+
+    public List<String> getWarningSigns() {
+        if (warningSigns == null) {
+            warningSigns = new java.util.ArrayList<>();
+        }
+        return warningSigns;
+    }
+
+    public void setWarningSigns(List<String> warningSigns) {
+        this.warningSigns = warningSigns;
+    }
+
+    public java.util.Map<String, Object> getClinicalInputs() {
+        if (clinicalInputs == null) {
+            clinicalInputs = new java.util.LinkedHashMap<>();
+        }
+        return clinicalInputs;
+    }
+
+    public void setClinicalInputs(java.util.Map<String, Object> clinicalInputs) {
+        this.clinicalInputs = clinicalInputs;
     }
 
     public String getLifestyleAdvice() {

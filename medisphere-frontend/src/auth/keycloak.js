@@ -1,9 +1,9 @@
 import Keycloak from 'keycloak-js';
 
 const keycloak = new Keycloak({
-  url: 'http://localhost:8081',
-  realm: 'medisphere',
-  clientId: 'medisphere-frontend'
+  url: import.meta.env.VITE_KEYCLOAK_URL || 'http://localhost:8081',
+  realm: import.meta.env.VITE_KEYCLOAK_REALM || 'medisphere',
+  clientId: import.meta.env.VITE_KEYCLOAK_CLIENT_ID || 'medisphere-frontend',
 });
 
 // Module-level promise so init() is only ever called ONCE,

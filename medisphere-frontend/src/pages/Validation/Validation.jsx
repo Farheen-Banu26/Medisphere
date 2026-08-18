@@ -1,6 +1,6 @@
 // src/pages/Validation/Validation.jsx
 import { useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   RiCheckboxLine, RiRefreshLine, RiAlertLine, RiCheckLine,
   RiCloseLine,
@@ -47,6 +47,8 @@ const ValidationRow = ({ label, status, message }) => (
 export const Validation = () => {
   const { notify } = useNotification();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [patients,   setPatients]  = useState([]);
   const [fhirRes,    setFhirRes]   = useState([]);
   const [loading,    setLoading]   = useState(true);
@@ -148,9 +150,9 @@ export const Validation = () => {
               const nextPid = e.target.value;
               setPid(nextPid);
               if (nextPid) {
-                window.history.replaceState({}, '', `/validation?patientId=${encodeURIComponent(nextPid)}`);
+                navigate(`${location.pathname}?patientId=${encodeURIComponent(nextPid)}`, { replace: true });
               } else {
-                window.history.replaceState({}, '', '/validation');
+                navigate(location.pathname, { replace: true });
               }
             }}
             className="form-select w-52"

@@ -18,6 +18,21 @@ export const patientService = {
 
   // DELETE /api/patients/{id}
   deletePatient: (id) => api.delete(`${PATIENTS_URL}/${id}`),
+
+  // GET /api/patients/doctor/{doctorId}
+  getPatientsByDoctor: (doctorId) => api.get(`${PATIENTS_URL}/doctor/${doctorId}`),
+
+  // GET /api/patients/hospital/{hospitalId}
+  getPatientsByHospital: (hospitalId) => api.get(`${PATIENTS_URL}/hospital/${hospitalId}`),
+
+  // GET /api/patients/specialty/{specialty}
+  getPatientsBySpecialty: (specialty) => api.get(`${PATIENTS_URL}/specialty/${specialty}`),
+
+  // PUT /api/patients/{patientId}/assign
+  assignPatient: (patientId, assignmentData) => api.put(`${PATIENTS_URL}/${patientId}/assign`, assignmentData),
+
+  // POST /api/patients/seed
+  seedPatients: () => api.post(`${PATIENTS_URL}/seed`),
 };
 
 export default patientService;

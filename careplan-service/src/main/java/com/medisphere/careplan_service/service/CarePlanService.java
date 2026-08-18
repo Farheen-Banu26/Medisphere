@@ -23,6 +23,8 @@ import com.medisphere.careplan_service.client.HealthTwinClient;
 import com.medisphere.careplan_service.client.HealthTwinDTO;
 import com.medisphere.careplan_service.client.PatientClient;
 import com.medisphere.careplan_service.client.PatientDTO;
+import com.medisphere.careplan_service.client.VitalsClient;
+import com.medisphere.careplan_service.client.VitalsDTO;
 import com.medisphere.careplan_service.dto.AddCommentRequest;
 import com.medisphere.careplan_service.dto.ApproveCarePlanRequest;
 import com.medisphere.careplan_service.dto.AuditResponse;
@@ -35,6 +37,7 @@ import com.medisphere.careplan_service.dto.OutcomeSummaryResponse;
 import com.medisphere.careplan_service.dto.OutcomeTrackingRequest;
 import com.medisphere.careplan_service.dto.TodayCarePlanResponse;
 import com.medisphere.careplan_service.dto.UpdateAdherenceRequest;
+import com.medisphere.careplan_service.dto.UpdateCarePlanRequest;
 import com.medisphere.careplan_service.dto.UpdateDoctorNotesRequest;
 import com.medisphere.careplan_service.dto.UpdateProgressRequest;
 import com.medisphere.careplan_service.dto.ValidationSummaryResponse;
@@ -57,10 +60,139 @@ public class CarePlanService {
 
     private static final Logger logger = LoggerFactory.getLogger(CarePlanService.class);
 
+    // ===========================================
+    // Security Context & Authorization Guards
+    // ===========================================
+    public static class SecurityUserContext {
+        public String username;
+        public String email;
+        public List<String> roles = new java.util.ArrayList<>();
+        public boolean isAdmin = false;
+        public boolean isDoctor = false;
+        public boolean isPatient = false;
+    }
+
+    public SecurityUserContext parseSecurityContext(jakarta.servlet.http.HttpServletRequest request) {
+        SecurityUserContext ctx = new SecurityUserContext();
+        if (request == null) return ctx;
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) return ctx;
+        String token = authHeader.substring(7).trim();
+        String[] parts = token.split("\\.");
+        if (parts.length < 2) return ctx;
+        try {
+            String payloadJson = new String(java.util.Base64.getUrlDecoder().decode(parts[1]), java.nio.charset.StandardCharsets.UTF_8);
+            ObjectMapper mapper = new ObjectMapper();
+            com.fasterxml.jackson.databind.JsonNode root = mapper.readTree(payloadJson);
+            if (root.has("preferred_username")) ctx.username = root.get("preferred_username").asText();
+            if (root.has("email")) ctx.email = root.get("email").asText();
+            if (root.has("realm_access") && root.get("realm_access").has("roles")) {
+                for (com.fasterxml.jackson.databind.JsonNode r : root.get("realm_access").get("roles")) {
+                    String role = r.asText().toUpperCase();
+                    ctx.roles.add(role);
+                    if ("ADMIN".equals(role)) ctx.isAdmin = true;
+                    if ("DOCTOR".equals(role)) ctx.isDoctor = true;
+                    if ("PATIENT".equals(role)) ctx.isPatient = true;
+                }
+            }
+        } catch (Exception ex) {}
+        return ctx;
+    }
+
+    public String resolveDoctorId(String doctorIdentifier) {
+        if (doctorIdentifier == null || doctorIdentifier.trim().isEmpty()) return "D001";
+        String normalized = doctorIdentifier.trim().toLowerCase();
+        switch (normalized) {
+            case "doctor": case "d001": case "dr_jenkins": return "D001";
+            case "dr_smith": case "d002": return "D002";
+            case "dr_jones": case "d003": return "D003";
+            case "dr_patel": case "d004": return "D004";
+            case "dr_chen": case "d005": return "D005";
+            default: return doctorIdentifier.toUpperCase();
+        }
+    }
+
+    public String resolvePatientId(String username, String email) {
+        if (username != null && !username.trim().isEmpty()) {
+            String u = username.trim();
+            if ("patient".equalsIgnoreCase(u) || "farheen".equalsIgnoreCase(u)) return "P1001";
+            try {
+                PatientDTO p = patientClient.getPatient(u);
+                if (p != null && p.patientId() != null && !p.patientId().isBlank()) {
+                    return p.patientId();
+                }
+            } catch (Exception ex) {
+                logger.warn("Failed to query patient-service for username {}: {}", u, ex.getMessage());
+            }
+            return u.toUpperCase();
+        }
+        if (email != null && !email.trim().isEmpty()) {
+            if ("banufarheen786786@gmail.com".equalsIgnoreCase(email) || "patient@medisphere.com".equalsIgnoreCase(email)) return "P1001";
+        }
+        return "P1001";
+    }
+
+    public boolean isPatientAssignedToDoctor(String docId, String targetPatientId) {
+        String doc = resolveDoctorId(docId);
+        String p = targetPatientId.toUpperCase().trim();
+        if ("D001".equals(doc)) {
+            return p.equals("P1001") || p.equals("P1002") ||
+                   p.equals("PT00001") || p.equals("PT00002") || p.equals("PT00003") || p.equals("PT00004") ||
+                   p.equals("PT00005") || p.equals("PT00006") || p.equals("PT00007") || p.equals("PT00008") ||
+                   p.equals("PT00039") || p.equals("PT00040");
+        } else if ("D002".equals(doc)) {
+            return p.equals("PT00009") || p.equals("PT00010") || p.equals("PT00011") || p.equals("PT00012") ||
+                   p.equals("PT00013") || p.equals("PT00014") || p.equals("PT00015") || p.equals("PT00016") ||
+                   p.equals("PT00041") || p.equals("PT00042");
+        } else if ("D003".equals(doc)) {
+            return p.equals("PT00017") || p.equals("PT00018") || p.equals("PT00019") || p.equals("PT00020") ||
+                   p.equals("PT00021") || p.equals("PT00022") || p.equals("PT00023") || p.equals("PT00024") ||
+                   p.equals("PT00043") || p.equals("PT00044");
+        } else if ("D004".equals(doc)) {
+            return p.equals("PT00025") || p.equals("PT00026") || p.equals("PT00027") || p.equals("PT00028") ||
+                   p.equals("PT00029") || p.equals("PT00030") || p.equals("PT00031") ||
+                   p.equals("PT00045") || p.equals("PT00046");
+        } else if ("D005".equals(doc)) {
+            return p.equals("PT00032") || p.equals("PT00033") || p.equals("PT00034") || p.equals("PT00035") ||
+                   p.equals("PT00036") || p.equals("PT00037") || p.equals("PT00038") ||
+                   p.equals("PT00047") || p.equals("PT00048");
+        }
+        return false;
+    }
+
+    public void verifyPatientResourceAccess(String targetPatientId, jakarta.servlet.http.HttpServletRequest request) {
+        SecurityUserContext ctx = parseSecurityContext(request);
+        if (ctx.username == null || ctx.username.trim().isEmpty()) return;
+
+        if (ctx.isAdmin) return;
+
+        if (ctx.isPatient) {
+            String myPatientId = resolvePatientId(ctx.username, ctx.email);
+            String requestedId = resolvePatientId(targetPatientId, null);
+            if (!requestedId.equalsIgnoreCase(myPatientId) && !targetPatientId.equalsIgnoreCase(myPatientId)) {
+                throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.FORBIDDEN,
+                    "Access Denied: Patient " + myPatientId + " cannot access Patient " + targetPatientId + " Care Plan"
+                );
+            }
+        } else if (ctx.isDoctor) {
+            String docId = resolveDoctorId(ctx.username);
+            String requestedId = resolvePatientId(targetPatientId, null);
+            if (!isPatientAssignedToDoctor(docId, requestedId) && !isPatientAssignedToDoctor(docId, targetPatientId)) {
+                throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.FORBIDDEN,
+                    "Access Denied: Doctor " + docId + " cannot access Patient " + targetPatientId + " Care Plan"
+                );
+            }
+        }
+    }
+
     private final CarePlanRepository repository;
     private final PatientClient patientClient;
     private final HealthTwinClient healthTwinClient;
+    private final VitalsClient vitalsClient;
     private final FlaskClient flaskClient;
+    private final com.medisphere.careplan_service.client.GeminiClient geminiClient;
     private final CarePlanRecommendationEngine recommendationEngine;
     private final List<String> featureColumns;
     private final ObjectMapper mapper = new ObjectMapper();
@@ -68,11 +200,15 @@ public class CarePlanService {
     public CarePlanService(CarePlanRepository repository,
                            PatientClient patientClient,
                            HealthTwinClient healthTwinClient,
-                           FlaskClient flaskClient) {
+                           VitalsClient vitalsClient,
+                           FlaskClient flaskClient,
+                           com.medisphere.careplan_service.client.GeminiClient geminiClient) {
         this.repository = repository;
         this.patientClient = patientClient;
         this.healthTwinClient = healthTwinClient;
+        this.vitalsClient = vitalsClient;
         this.flaskClient = flaskClient;
+        this.geminiClient = geminiClient;
         this.recommendationEngine = new CarePlanRecommendationEngine();
 
         List<String> cols;
@@ -92,32 +228,113 @@ public class CarePlanService {
     // ─── Generate Care Plan ────────────────────────────────────────────────────
 
     /**
-     * Creates an AI-assisted care plan for a patient.
-     * Invokes Flask AI service using patient & health twin features,
-     * and uses fallback recommendation logic if Flask AI is unavailable.
+     * Creates an AI-assisted care plan for a patient using REAL PATIENT DATA, LATEST VITALS, and GEMINI API.
+     * Recommendations are saved with PENDING status and require physician review & approval before activation.
      */
     public CarePlan generateCarePlan(GenerateCarePlanRequest request) {
         String patientId = request.getPatientId();
         logger.info("Generating AI care plan for patient: {}", patientId);
 
         CarePlanRecommendationResult recommendation = null;
+        Map<String, Object> clinicalInputs = new LinkedHashMap<>();
+
+        PatientDTO patient = null;
+        VitalsDTO vitals = null;
+        HealthTwinDTO twin = null;
+        FlaskResponse flaskResp = null;
+        List<CarePlan> previousPlans = List.of();
 
         try {
-            PatientDTO patient = patientClient.getPatient(patientId);
-            HealthTwinDTO twin = healthTwinClient.getHealthTwin(patientId);
+            // Fetch Patient Profile
+            patient = patientClient.getPatient(patientId);
+            // Fetch Latest Vitals from vitals-service
+            vitals = vitalsClient.getLatestVitals(patientId);
+            // Fetch Health Twin / Lab Data
+            twin = healthTwinClient.getHealthTwin(patientId);
+            // Fetch Care Plan History
+            previousPlans = repository.findByPatientIdOrderByCreatedAtDesc(patientId);
 
             if (patient != null && twin != null) {
-                Map<String, Object> features = buildFeatureMap(patient, twin);
-                FlaskRequest flaskReq = new FlaskRequest(features);
-                FlaskResponse flaskResp = flaskClient.predict(flaskReq);
-                recommendation = recommendationEngine.generate(flaskResp, request.getPredictionRisk());
-                logger.info("Successfully generated AI care plan via Flask for patient {}", patientId);
+                try {
+                    Map<String, Object> features = buildFeatureMap(patient, twin);
+                    FlaskRequest flaskReq = new FlaskRequest(features);
+                    flaskResp = flaskClient.predict(flaskReq);
+                } catch (Exception ex) {
+                    logger.warn("Flask AI prediction failed for patient {}: {}. Proceeding with baseline features.", patientId, ex.getMessage());
+                }
+            }
+
+            // Build Clinical Inputs Snapshot for Audit & Doctor UI
+            clinicalInputs.put("patientId", patientId);
+            if (patient != null) {
+                clinicalInputs.put("patientName", (patient.firstName() != null ? patient.firstName() : "") + " " + (patient.lastName() != null ? patient.lastName() : ""));
+                clinicalInputs.put("age", patient.age());
+                if (patient.condition() != null) clinicalInputs.put("condition", patient.condition());
+            }
+
+            if (vitals != null) {
+                Map<String, Object> vMap = new LinkedHashMap<>();
+                vMap.put("heartRate", vitals.heartRate());
+                vMap.put("bpSystolic", vitals.bpSystolic());
+                vMap.put("bpDiastolic", vitals.bpDiastolic());
+                vMap.put("spo2", vitals.spo2());
+                vMap.put("temperature", vitals.temperature());
+                vMap.put("steps", vitals.steps());
+                vMap.put("sleepHours", vitals.sleepHours());
+                vMap.put("recordedAt", vitals.recordedAt() != null ? vitals.recordedAt().toString() : "Recent");
+                clinicalInputs.put("vitals", vMap);
+            } else if (twin != null) {
+                Map<String, Object> vMap = new LinkedHashMap<>();
+                vMap.put("heartRate", twin.heartRate());
+                vMap.put("bpSystolic", twin.systolicBP());
+                vMap.put("bpDiastolic", twin.diastolicBP());
+                vMap.put("spo2", twin.oxygen());
+                vMap.put("temperature", twin.temperature());
+                vMap.put("recordedAt", "HealthTwin Snapshot");
+                clinicalInputs.put("vitals", vMap);
             } else {
-                logger.warn("Missing patient or health twin data for {}. Using fallback recommendations.", patientId);
-                recommendation = recommendationEngine.generateFallback(request.getPredictionRisk());
+                clinicalInputs.put("vitalsStatus", "Live vitals unavailable");
+            }
+
+            if (twin != null) {
+                Map<String, Object> tMap = new LinkedHashMap<>();
+                tMap.put("height", twin.height());
+                tMap.put("weight", twin.weight());
+                tMap.put("bmi", twin.bmi());
+                tMap.put("bloodGlucose", twin.bloodGlucose());
+                tMap.put("hbA1c", twin.hbA1c());
+                tMap.put("cholesterol", twin.cholesterol());
+                tMap.put("smokingHistory", twin.smokingHistory());
+                tMap.put("familyHistory", twin.familyHistory());
+                clinicalInputs.put("healthTwin", tMap);
+            }
+
+            if (flaskResp != null) {
+                clinicalInputs.put("heartDiseasePrediction", flaskResp.heartDisease());
+                clinicalInputs.put("diabetesPrediction", flaskResp.diabetes());
+            }
+            clinicalInputs.put("predictionRisk", request.getPredictionRisk());
+            clinicalInputs.put("generatedAt", LocalDateTime.now().toString());
+
+            // 1. Try Gemini API Generation
+            if (geminiClient != null && geminiClient.isConfigured()) {
+                recommendation = geminiClient.generateCarePlan(patient, vitals, twin, flaskResp, request.getPredictionRisk(), previousPlans);
+                if (recommendation != null) {
+                    logger.info("Successfully generated AI CarePlan via Gemini 1.5 Flash for patient {}", patientId);
+                }
+            }
+
+            // 2. Fallback to recommendation engine if Gemini is unavailable or unconfigured
+            if (recommendation == null) {
+                logger.info("Gemini API not available/configured for patient {}. Using recommendation engine fallback.", patientId);
+                if (flaskResp != null) {
+                    recommendation = recommendationEngine.generate(flaskResp, request.getPredictionRisk());
+                } else {
+                    recommendation = recommendationEngine.generateFallback(request.getPredictionRisk());
+                }
             }
         } catch (Exception ex) {
-            logger.error("Flask AI or service call failed for patient {}: {}. Continuing with fallback rules.",
+            logger.error("CarePlan generation failed for patient {}: {}. Continuing with fallback rules.",
                     patientId, ex.getMessage());
             recommendation = recommendationEngine.generateFallback(request.getPredictionRisk());
         }
@@ -131,16 +348,13 @@ public class CarePlanService {
         plan.setPredictionRisk(request.getPredictionRisk() != null && !request.getPredictionRisk().isBlank()
                 ? request.getPredictionRisk()
                 : recommendation.riskLevel());
-        plan.setAiRecommendation(recommendation.aiRecommendation());
-        plan.setLifestyleAdvice(recommendation.lifestyleAdvice());
-        plan.setReviewIntervalDays(recommendation.reviewIntervalDays());
-        plan.setGeneratedBy(recommendation.generatedBy());
-        plan.setGenerationTime(LocalDateTime.now());
 
-        // Field Overrides or Defaults
         plan.setGoal(request.getGoal() != null && !request.getGoal().isBlank()
                 ? request.getGoal()
-                : "Clinical Care & Wellness Goal for " + recommendation.riskLevel() + " Risk Profile");
+                : recommendation.goal());
+
+        plan.setClinicalSummary(recommendation.clinicalSummary());
+        plan.setAiRecommendation(recommendation.aiRecommendation());
 
         plan.setMedications(request.getMedications() != null && !request.getMedications().isEmpty()
                 ? request.getMedications()
@@ -162,6 +376,15 @@ public class CarePlanService {
                 ? request.getWaterIntake()
                 : recommendation.waterIntake());
 
+        plan.setLifestyleAdvice(recommendation.lifestyleAdvice());
+        plan.setMonitoringRecommendations(recommendation.monitoringRecommendations());
+        plan.setWarningSigns(recommendation.warningSigns());
+
+        plan.setReviewIntervalDays(recommendation.reviewIntervalDays());
+        plan.setGeneratedBy(recommendation.generatedBy());
+        plan.setGenerationTime(LocalDateTime.now());
+        plan.setClinicalInputs(clinicalInputs);
+
         plan.setDoctorNotes(request.getDoctorNotes() != null && !request.getDoctorNotes().isBlank()
                 ? request.getDoctorNotes()
                 : recommendation.doctorNotes());
@@ -175,7 +398,7 @@ public class CarePlanService {
         plan.setAdherence(0);
         plan.setCreatedAt(LocalDateTime.now());
         plan.setUpdatedAt(LocalDateTime.now());
-        plan.addAuditLog("GENERATED", "AI_SYSTEM", "SYSTEM", "Care Plan Generated");
+        plan.addAuditLog("GENERATED", "AI_SYSTEM", "SYSTEM", "Care Plan Generated via " + recommendation.generatedBy());
 
         CarePlan saved = repository.save(plan);
         logger.info("Care plan saved to MongoDB: {} (Risk: {}, GeneratedBy: {})",
@@ -307,6 +530,21 @@ public class CarePlanService {
         return repository.findByDoctorStatusOrderByCreatedAtDesc(DoctorStatus.PENDING);
     }
 
+    public List<CarePlan> getAllCarePlans() {
+        logger.info("Fetching all care plans");
+        return repository.findAll();
+    }
+
+    public List<CarePlan> getApprovedCarePlans() {
+        logger.info("Fetching all approved care plans");
+        return repository.findByDoctorStatusOrderByCreatedAtDesc(DoctorStatus.APPROVED);
+    }
+
+    public List<CarePlan> getRejectedCarePlans() {
+        logger.info("Fetching all rejected care plans");
+        return repository.findByDoctorStatusOrderByCreatedAtDesc(DoctorStatus.REJECTED);
+    }
+
     // ─── Doctor Approve Care Plan ──────────────────────────────────────────────
 
     /**
@@ -390,6 +628,90 @@ public class CarePlanService {
 
         CarePlan saved = repository.save(plan);
         logger.info("Care plan {} successfully REJECTED by doctor {}", carePlanId, request.getRejectedBy());
+        return saved;
+    }
+
+    // ─── Doctor Edit / Modify Care Plan ───────────────────────────────────────
+
+    /**
+     * Updates any/all content fields of a care plan before physician approval.
+     * Allows editing Risk Level, Goal, Clinical Summary, Medications, Diet, Exercise,
+     * Sleep, Water, Lifestyle Advice, Monitoring Recommendations, Warning Signs, Review Interval, and Doctor Notes.
+     * Records audit trail entry 'UPDATED_BY_DOCTOR'.
+     */
+    public CarePlan updateCarePlan(String carePlanId, UpdateCarePlanRequest request) {
+        logger.info("Doctor updating care plan content sections for: {}", carePlanId);
+        CarePlan plan = findByCarePlanIdOrThrow(carePlanId);
+
+        if (request.getRiskLevel() != null && !request.getRiskLevel().isBlank()) {
+            plan.setRiskLevel(request.getRiskLevel().toUpperCase());
+        }
+        if (request.getGoal() != null && !request.getGoal().isBlank()) {
+            plan.setGoal(request.getGoal());
+        }
+        if (request.getClinicalSummary() != null && !request.getClinicalSummary().isBlank()) {
+            plan.setClinicalSummary(request.getClinicalSummary());
+        }
+        if (request.getMedications() != null) {
+            plan.setMedications(request.getMedications());
+        }
+
+        if (request.getDiet() != null) {
+            if (request.getDiet() instanceof List<?> list) {
+                plan.setDiet(String.join("; ", list.stream().map(Object::toString).toList()));
+            } else {
+                plan.setDiet(request.getDiet().toString());
+            }
+        }
+
+        if (request.getExercise() != null) {
+            if (request.getExercise() instanceof List<?> list) {
+                plan.setExercise(String.join("; ", list.stream().map(Object::toString).toList()));
+            } else {
+                plan.setExercise(request.getExercise().toString());
+            }
+        }
+
+        if (request.getSleepRecommendation() != null && !request.getSleepRecommendation().isBlank()) {
+            plan.setSleepRecommendation(request.getSleepRecommendation());
+        }
+        if (request.getWaterIntake() != null && !request.getWaterIntake().isBlank()) {
+            plan.setWaterIntake(request.getWaterIntake());
+        }
+
+        if (request.getLifestyleAdvice() != null) {
+            if (request.getLifestyleAdvice() instanceof List<?> list) {
+                plan.setLifestyleAdvice(String.join("; ", list.stream().map(Object::toString).toList()));
+            } else {
+                plan.setLifestyleAdvice(request.getLifestyleAdvice().toString());
+            }
+        }
+
+        if (request.getMonitoringRecommendations() != null) {
+            plan.setMonitoringRecommendations(request.getMonitoringRecommendations());
+        }
+        if (request.getWarningSigns() != null) {
+            plan.setWarningSigns(request.getWarningSigns());
+        }
+        if (request.getReviewIntervalDays() != null) {
+            plan.setReviewIntervalDays(request.getReviewIntervalDays());
+            plan.setNextReview(LocalDate.now().plusDays(request.getReviewIntervalDays()));
+        }
+        if (request.getDoctorNotes() != null) {
+            plan.setDoctorNotes(request.getDoctorNotes());
+        }
+
+        String doctorName = request.getLastModifiedBy() != null && !request.getLastModifiedBy().isBlank()
+                ? request.getLastModifiedBy()
+                : "Dr. Attending";
+        plan.setLastModifiedBy(doctorName);
+        plan.setLastModifiedAt(LocalDateTime.now());
+        plan.setUpdatedAt(LocalDateTime.now());
+
+        plan.addAuditLog("UPDATED_BY_DOCTOR", doctorName, "DOCTOR", "Doctor modified Care Plan content sections prior to approval");
+
+        CarePlan saved = repository.save(plan);
+        logger.info("Care plan {} successfully updated by doctor {}", carePlanId, doctorName);
         return saved;
     }
 

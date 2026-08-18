@@ -24,6 +24,7 @@ import {
 } from 'react-icons/ri';
 import { alertService } from '../../services/alertService';
 import { useNotification } from '../../context/NotificationContext';
+import { useAuth } from '../../auth/AuthProvider';
 
 // ─── Constants & Helpers ───────────────────────────────────────────────────────
 const POLL_MS = 10_000;
@@ -120,10 +121,14 @@ const SummaryCard = ({ label, value, sub, icon: Icon, accentColor = 'blue', load
 };
 
 // ─── Alert Details Modal Component ────────────────────────────────────────────
-const AlertDetailModal = ({ alert, onClose }) => {
+const AlertDetailModal = ({ alert, onClose, onAcknowledge, onCloseAlert, actionLoading }) => {
   const [showJson, setShowJson] = useState(false);
 
   if (!alert) return null;
+
+  const statusUpper = alert.status?.toUpperCase() || '';
+  const canAck = ['NEW', 'SENT', 'DELIVERED'].includes(statusUpper);
+  const canClose = statusUpper === 'ACKNOWLEDGED';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
@@ -133,7 +138,7 @@ const AlertDetailModal = ({ alert, onClose }) => {
           <div className="flex items-center gap-3">
             <RiTimeLine className="w-5 h-5 text-blue-400" />
             <div>
-              <h3 className="text-base font-bold text-white">Alert Details</h3>
+              <h3 className="text-base font-bold text-white">Alert Details &amp; Lifecycle Management</h3>
               <p className="text-xs text-gray-400 font-mono">ID: {fmtVal(alert.alertId || alert.id)}</p>
             </div>
           </div>
@@ -210,6 +215,38 @@ const AlertDetailModal = ({ alert, onClose }) => {
             </div>
           )}
 
+          {/* AI Insights (if present) */}
+          {(alert.prediction != null || alert.risk != null || alert.confidence != null || alert.aiRecommendation != null) && (
+            <div className="bg-purple-950/20 border border-purple-500/30 p-4 rounded-xl space-y-2 text-xs">
+              <p className="font-bold text-purple-300 uppercase tracking-widest">AI Insights &amp; Recommendation</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {alert.prediction != null && (
+                  <div>
+                    <span className="text-gray-400">Prediction: </span>
+                    <span className="font-bold text-purple-200">{fmtVal(alert.prediction)}</span>
+                  </div>
+                )}
+                {alert.risk != null && (
+                  <div>
+                    <span className="text-gray-400">Risk Level: </span>
+                    <span className="font-bold text-purple-200">{fmtVal(alert.risk)}</span>
+                  </div>
+                )}
+                {alert.confidence != null && (
+                  <div>
+                    <span className="text-gray-400">Confidence: </span>
+                    <span className="font-bold text-purple-200">{alert.confidence}%</span>
+                  </div>
+                )}
+              </div>
+              {alert.aiRecommendation && (
+                <p className="text-gray-300 pt-1 border-t border-purple-500/20 italic">
+                  &ldquo;{alert.aiRecommendation}&rdquo;
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Timestamps & Lifecycle */}
           <div className="bg-surface p-4 rounded-xl border border-[#1F2937] space-y-2 text-xs">
             <p className="font-bold text-gray-400 uppercase tracking-wider mb-2">Lifecycle Timestamps</p>
@@ -258,10 +295,32 @@ const AlertDetailModal = ({ alert, onClose }) => {
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="px-6 py-3.5 bg-surface-2 border-t border-[#1F2937] flex justify-end">
-          <button onClick={onClose} className="btn-primary btn-sm">
-            Close
+        {/* Footer with Action Buttons */}
+        <div className="px-6 py-3.5 bg-surface-2 border-t border-[#1F2937] flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            {canAck && onAcknowledge && (
+              <button
+                onClick={() => onAcknowledge(alert.alertId || alert.id)}
+                disabled={actionLoading}
+                className="btn btn-sm bg-purple-600 text-white hover:bg-purple-500 disabled:opacity-50 flex items-center gap-1.5"
+              >
+                <RiCheckLine className="w-4 h-4" />
+                {actionLoading ? 'Acknowledging…' : 'Acknowledge Alert'}
+              </button>
+            )}
+            {canClose && onCloseAlert && (
+              <button
+                onClick={() => onCloseAlert(alert.alertId || alert.id, alert.status)}
+                disabled={actionLoading}
+                className="btn btn-sm bg-green-600 text-white hover:bg-green-500 disabled:opacity-50 flex items-center gap-1.5"
+              >
+                <RiCloseLine className="w-4 h-4" />
+                {actionLoading ? 'Closing…' : 'Close Alert'}
+              </button>
+            )}
+          </div>
+          <button onClick={onClose} className="btn-outline btn-sm">
+            Dismiss
           </button>
         </div>
       </div>
@@ -271,12 +330,14 @@ const AlertDetailModal = ({ alert, onClose }) => {
 
 // ─── Main AlertHistory Component ─────────────────────────────────────────────
 export const AlertHistory = () => {
+  const { user }   = useAuth();
   const { notify } = useNotification();
 
   const [alerts, setAlerts]             = useState([]);
   const [loading, setLoading]           = useState(true);
   const [error, setError]               = useState(null);
   const [lastUpdated, setLastUpdated]   = useState(null);
+  const [actionLoadingId, setActionLoadingId] = useState(null);
 
   // Search & Filter state
   const [searchPatient, setSearchPatient] = useState('');
@@ -310,6 +371,67 @@ export const AlertHistory = () => {
       if (isMountedRef.current) setLoading(false);
     }
   }, [notify]);
+
+  // ── Alert Acknowledge Handler ──────────────────────────────────────────
+  const handleAcknowledgeAlert = async (alertId, ackBy) => {
+    if (!alertId || actionLoadingId === alertId) return;
+    setActionLoadingId(alertId);
+    try {
+      const name = ackBy || user?.name || user?.preferred_username || user?.username || user?.email || 'Dr. Sarah Jenkins';
+      await alertService.acknowledge(alertId, name);
+      notify.success('Alert Acknowledged', `Alert ${alertId} acknowledged by ${name}.`);
+      await fetchAlerts();
+      if (selectedAlert && (selectedAlert.alertId === alertId || selectedAlert.id === alertId)) {
+        setSelectedAlert((prev) =>
+          prev
+            ? {
+                ...prev,
+                status: 'ACKNOWLEDGED',
+                acknowledgedBy: name,
+                acknowledgedAt: new Date().toISOString(),
+              }
+            : null
+        );
+      }
+    } catch (err) {
+      notify.error('Acknowledge Failed', err?.response?.data?.message || err.message);
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  // ── Alert Close Handler ────────────────────────────────────────────────
+  const handleCloseAlert = async (alertId, currentStatus) => {
+    if (!alertId || actionLoadingId === alertId) return;
+    if (currentStatus?.toUpperCase() !== 'ACKNOWLEDGED') {
+      notify.warning(
+        'Cannot Close Alert',
+        'Alert must be acknowledged before it can be closed. Please acknowledge it first.'
+      );
+      return;
+    }
+    setActionLoadingId(alertId);
+    try {
+      await alertService.close(alertId);
+      notify.success('Alert Closed', `Alert ${alertId} has been closed.`);
+      await fetchAlerts();
+      if (selectedAlert && (selectedAlert.alertId === alertId || selectedAlert.id === alertId)) {
+        setSelectedAlert((prev) =>
+          prev
+            ? {
+                ...prev,
+                status: 'CLOSED',
+                closedAt: new Date().toISOString(),
+              }
+            : null
+        );
+      }
+    } catch (err) {
+      notify.error('Close Failed', err?.response?.data?.message || err.message);
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
 
   // ── Mount & 10s Auto Refresh ──────────────────────────────────────────────
   useEffect(() => {
@@ -771,6 +893,9 @@ export const AlertHistory = () => {
         <AlertDetailModal
           alert={selectedAlert}
           onClose={() => setSelectedAlert(null)}
+          onAcknowledge={handleAcknowledgeAlert}
+          onCloseAlert={handleCloseAlert}
+          actionLoading={actionLoadingId != null}
         />
       )}
     </div>

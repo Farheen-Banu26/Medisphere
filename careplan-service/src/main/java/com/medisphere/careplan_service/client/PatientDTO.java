@@ -12,5 +12,9 @@ public record PatientDTO(
         String lastName,
         Integer age,
         @JsonProperty("gender") String gender,
-        @JsonProperty("dob") String dob
+        @JsonProperty("dob") String dob,
+        String email,
+        String phone,
+        String condition,
+        String assignedDoctorName
 ) {}

@@ -19,6 +19,9 @@ export const carePlanService = {
   // PUT /api/careplans/{carePlanId}/reject
   reject: (carePlanId, data) => api.put(`${BASE_URL}/${carePlanId}/reject`, data),
 
+  // PUT /api/careplans/{carePlanId}/update
+  updateCarePlan: (carePlanId, data) => api.put(`${BASE_URL}/${carePlanId}/update`, data),
+
   // PUT /api/careplans/{carePlanId}/doctor-notes
   updateDoctorNotes: (carePlanId, data) => api.put(`${BASE_URL}/${carePlanId}/doctor-notes`, data),
 
@@ -54,6 +57,15 @@ export const carePlanService = {
 
   // GET /api/careplans/pending
   getPending: () => api.get(`${BASE_URL}/pending`),
+
+  // GET /api/careplans/all
+  getAll: () => api.get(`${BASE_URL}/all`),
+
+  // GET /api/careplans/approved
+  getApproved: () => api.get(`${BASE_URL}/approved`),
+
+  // GET /api/careplans/rejected
+  getRejected: () => api.get(`${BASE_URL}/rejected`),
 
   // GET /api/careplans/{patientId}
   getLatestByPatient: (patientId) => api.get(`${BASE_URL}/${patientId}`),

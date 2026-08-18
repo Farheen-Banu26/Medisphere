@@ -1,6 +1,6 @@
 // src/pages/DigitalTwin/DigitalTwin.jsx
 import { useState, useEffect, useCallback } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   RiRobot2Line, RiSearchLine, RiRefreshLine, RiAlertLine,
   RiHeartPulseLine, RiDropLine, RiThermometerLine, RiMoonLine, RiRunLine,
@@ -42,6 +42,7 @@ const VitalBox = ({ icon: Icon, label, value, unit, color }) => (
 export const DigitalTwin = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { notify } = useNotification();
   const [pidInput, setPid]   = useState(searchParams.get('patientId') || '');
   const [patients, setPatients] = useState([]);
@@ -88,6 +89,12 @@ export const DigitalTwin = () => {
     setPid(pid);
     if (pid) {
       loadTwin(pid);
+      const interval = setInterval(() => {
+        // Silently poll twin & vitals every 8s for live wearable updates
+        twinService.getPatient360Summary(pid).then((r) => { if (r?.data) setData(r.data); }).catch(() => {});
+        vitalsService.getLatestVitals(pid).then((v) => { if (v?.data) setVitals(v.data); }).catch(() => {});
+      }, 8000);
+      return () => clearInterval(interval);
     } else {
       setData(null);
       setVitals(null);
@@ -101,6 +108,17 @@ export const DigitalTwin = () => {
   const bmi = twin?.bmi ?? (twin?.height && twin?.weight ? (twin.weight / ((twin.height / 100) ** 2)).toFixed(1) : null);
   const hasLabResults = labResults && Object.keys(labResults).length > 0;
 
+  const activeVitals = vitals || (twin && (twin.heartRate != null || twin.systolicBP != null) ? {
+    heartRate: twin.heartRate,
+    bpSystolic: twin.systolicBP ?? twin.bpSystolic,
+    bpDiastolic: twin.diastolicBP ?? twin.bpDiastolic,
+    spo2: twin.oxygen ?? twin.spo2,
+    temperature: twin.temperature,
+    steps: twin.steps,
+    sleepHours: twin.sleepHours,
+    recordedAt: twin.lastUpdated
+  } : null);
+
   return (
     <div className="space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -111,6 +129,14 @@ export const DigitalTwin = () => {
           <p className="page-subtitle">Digital replica of patient health and risk profile</p>
         </div>
         <div className="flex items-center gap-2">
+          {pidInput && (
+            <div className="flex items-center gap-1.5">
+              <button onClick={() => navigate(`/doctor/vitals?patientId=${encodeURIComponent(pidInput)}`)} className="btn-outline btn-sm">Vitals</button>
+              <button onClick={() => navigate(`/doctor/predictions?patientId=${encodeURIComponent(pidInput)}`)} className="btn-outline btn-sm">Predictions</button>
+              <button onClick={() => navigate(`/doctor/care-plans-overview?patientId=${encodeURIComponent(pidInput)}`)} className="btn-outline btn-sm">Care Plans</button>
+              <button onClick={() => navigate(`/doctor/clinical-insights?patientId=${encodeURIComponent(pidInput)}`)} className="btn-outline btn-sm">Clinical Insights</button>
+            </div>
+          )}
           <div className="relative">
             <RiSearchLine className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
             <select
@@ -119,9 +145,9 @@ export const DigitalTwin = () => {
                 const nextPid = e.target.value.trim();
                 setPid(nextPid);
                 if (nextPid) {
-                  navigate(`/digital-twin?patientId=${encodeURIComponent(nextPid)}`, { replace: true });
+                  navigate(`${location.pathname}?patientId=${encodeURIComponent(nextPid)}`, { replace: true });
                 } else {
-                  navigate('/digital-twin', { replace: true });
+                  navigate(location.pathname, { replace: true });
                 }
               }}
               className="form-select pl-9 w-56"
@@ -136,10 +162,10 @@ export const DigitalTwin = () => {
           </div>
           <button onClick={() => {
             const pid = pidInput.trim();
-            if (pid) navigate(`/digital-twin?patientId=${encodeURIComponent(pid)}`, { replace: true });
+            if (pid) navigate(`${location.pathname}?patientId=${encodeURIComponent(pid)}`, { replace: true });
           }} className="btn-primary btn-sm" disabled={loading || !pidInput.trim()}>
             {loading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <RiRefreshLine className="w-4 h-4" />}
-            Load
+            Refresh
           </button>
         </div>
       </div>
@@ -148,7 +174,7 @@ export const DigitalTwin = () => {
         <div className="card py-20 text-center space-y-3">
           <RiRobot2Line className="w-16 h-16 text-gray-700 mx-auto" />
           <p className="text-lg font-bold text-gray-400">Choose a patient to view the digital twin</p>
-          <button onClick={() => navigate('/patients')} className="btn-outline btn-sm">Browse Patients</button>
+          <button onClick={() => navigate('/doctor/patients')} className="btn-outline btn-sm">Browse Patients</button>
         </div>
       )}
 
@@ -200,14 +226,14 @@ export const DigitalTwin = () => {
               {/* Latest Vitals */}
               <div>
                 <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Latest Vitals</p>
-                {vitals ? (
+                {activeVitals ? (
                   <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
-                    <VitalBox icon={RiHeartPulseLine} label="HR"    value={vitals.heartRate}   unit="bpm"  color="text-red-400" />
-                    <VitalBox icon={RiDropLine}        label="BP"    value={vitals.bpSystolic ? `${vitals.bpSystolic}/${vitals.bpDiastolic}` : null} unit="mmHg" color="text-blue-400" />
-                    <VitalBox icon={RiHeartPulseLine} label="SpO₂"  value={vitals.spo2}        unit="%"    color="text-cyan-400" />
-                    <VitalBox icon={RiThermometerLine}label="Temp"   value={vitals.temperature} unit="°F"   color="text-amber-400" />
-                    <VitalBox icon={RiRunLine}         label="Steps"  value={vitals.steps}       unit="today"color="text-green-400" />
-                    <VitalBox icon={RiMoonLine}        label="Sleep"  value={vitals.sleepHours}  unit="hrs"  color="text-indigo-400" />
+                    <VitalBox icon={RiHeartPulseLine} label="HR"    value={activeVitals.heartRate}   unit="bpm"  color="text-red-400" />
+                    <VitalBox icon={RiDropLine}        label="BP"    value={activeVitals.bpSystolic ? `${activeVitals.bpSystolic}/${activeVitals.bpDiastolic}` : null} unit="mmHg" color="text-blue-400" />
+                    <VitalBox icon={RiHeartPulseLine} label="SpO₂"  value={activeVitals.spo2}        unit="%"    color="text-cyan-400" />
+                    <VitalBox icon={RiThermometerLine}label="Temp"   value={activeVitals.temperature} unit="°F"   color="text-amber-400" />
+                    <VitalBox icon={RiRunLine}         label="Steps"  value={activeVitals.steps}       unit="today"color="text-green-400" />
+                    <VitalBox icon={RiMoonLine}        label="Sleep"  value={activeVitals.sleepHours}  unit="hrs"  color="text-indigo-400" />
                   </div>
                 ) : (
                   <div className="card py-8 text-center">

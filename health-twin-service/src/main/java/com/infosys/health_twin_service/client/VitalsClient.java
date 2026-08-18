@@ -11,11 +11,15 @@ public class VitalsClient {
     private RestTemplate restTemplate;
 
     public Object getLatestVitals(String patientId) {
-
-        return restTemplate.getForObject(
-                "http://vitals-service/api/vitals/latest/{patientId}",
-                Object.class,
-                patientId);
-
+        if (patientId == null || patientId.isBlank()) return null;
+        try {
+            return restTemplate.getForObject(
+                    "http://vitals-service/api/vitals/latest/{patientId}",
+                    Object.class,
+                    patientId);
+        } catch (Exception e) {
+            System.err.println("VitalsClient error for " + patientId + ": " + e.getMessage());
+            return null;
+        }
     }
 }

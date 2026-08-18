@@ -10,8 +10,27 @@ public class VitalMessage {
     private int spo2;
     private int steps;
     private double sleepHours;
+    private int respirationRate;
+    // Patient age — populated by alert-service via PatientClient for AFib rule
+    private int patientAge;
 
     public VitalMessage() {
+    }
+
+    public int getRespirationRate() {
+        return respirationRate;
+    }
+
+    public void setRespirationRate(int respirationRate) {
+        this.respirationRate = respirationRate;
+    }
+
+    public int getPatientAge() {
+        return patientAge;
+    }
+
+    public void setPatientAge(int patientAge) {
+        this.patientAge = patientAge;
     }
 
     public String getPatientId() {

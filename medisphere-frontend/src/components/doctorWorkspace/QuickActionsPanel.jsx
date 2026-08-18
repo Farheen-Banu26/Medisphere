@@ -3,12 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { RiHeartPulseLine, RiRobot2Line, RiBarChartLine, RiStethoscopeLine, RiTestTubeLine, RiShieldCheckLine } from 'react-icons/ri';
 
 const actions = [
-  { title: 'Open Patient360', path: '/patient360', icon: RiHeartPulseLine },
-  { title: 'Open Clinical Insights', path: '/clinical-insights', icon: RiStethoscopeLine },
-  { title: 'Open Prediction Dashboard', path: '/predictions', icon: RiRobot2Line },
-  { title: 'Open Operations Dashboard', path: '/operations', icon: RiBarChartLine },
-  { title: 'View Vitals', path: '/vitals', icon: RiHeartPulseLine },
-  { title: 'View Labs', path: '/patient360', icon: RiTestTubeLine },
+  { title: 'Open Patient360', path: '/doctor/patient360', icon: RiHeartPulseLine },
+  { title: 'Open Clinical Insights', path: '/doctor/clinical-insights', icon: RiStethoscopeLine },
+  { title: 'Open Prediction Dashboard', path: '/doctor/predictions', icon: RiRobot2Line },
+  { title: 'Open Operations Dashboard', path: '/doctor/operations', icon: RiBarChartLine },
+  { title: 'View Vitals', path: '/doctor/vitals', icon: RiHeartPulseLine },
+  { title: 'View Labs', path: '/doctor/patient360', icon: RiTestTubeLine },
 ];
 
 export const QuickActionsPanel = memo(function QuickActionsPanel({ patientId }) {

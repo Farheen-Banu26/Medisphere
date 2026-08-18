@@ -20,8 +20,8 @@ public class AuditController {
     private AuditService service;
 
     @GetMapping("/logs")
-    public List<AuditLog> getLogs() {
-        return service.getLogs();
+    public List<AuditLog> getLogs(jakarta.servlet.http.HttpServletRequest request) {
+        return service.getLogsSecured(request);
     }
 
     @PostMapping("/logs")

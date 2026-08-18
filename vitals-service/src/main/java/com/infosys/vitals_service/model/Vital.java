@@ -19,6 +19,7 @@ public class Vital {
     private int spo2;
     private int steps;
     private double sleepHours;
+    private int respirationRate;
     private LocalDateTime recordedAt;
 
     public Vital() {
@@ -26,7 +27,7 @@ public class Vital {
 
     public Vital(String id, String patientId, int heartRate, int bpSystolic,
                  int bpDiastolic, double temperature, int spo2,
-                 int steps, double sleepHours, LocalDateTime recordedAt) {
+                 int steps, double sleepHours, int respirationRate, LocalDateTime recordedAt) {
 
         this.id = id;
         this.patientId = patientId;
@@ -37,6 +38,7 @@ public class Vital {
         this.spo2 = spo2;
         this.steps = steps;
         this.sleepHours = sleepHours;
+        this.respirationRate = respirationRate;
         this.recordedAt = recordedAt;
     }
 
@@ -110,6 +112,14 @@ public class Vital {
 
     public void setSleepHours(double sleepHours) {
         this.sleepHours = sleepHours;
+    }
+
+    public int getRespirationRate() {
+        return respirationRate;
+    }
+
+    public void setRespirationRate(int respirationRate) {
+        this.respirationRate = respirationRate;
     }
 
     public LocalDateTime getRecordedAt() {

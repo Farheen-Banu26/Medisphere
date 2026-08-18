@@ -25,6 +25,12 @@ logger.info("Feature columns: %s", artifacts.feature_columns)
 
 
 
+@app.route("/health", methods=["GET"])
+def health_check() -> tuple[dict, int]:
+    """Lightweight liveness probe — confirms the Flask service is running."""
+    return jsonify({"status": "UP", "service": "flask-ai-service"}), 200
+
+
 @app.route("/api/predict", methods=["POST"])
 def api_predict() -> tuple[dict, int]:
     """Handle prediction requests with validation, preprocessing, and inference."""

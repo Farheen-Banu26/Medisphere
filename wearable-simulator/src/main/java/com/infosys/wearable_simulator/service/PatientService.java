@@ -45,14 +45,18 @@ public class PatientService {
                 return Collections.emptyList();
             }
 
-            return patients.stream()
+            List<String> fetched = patients.stream()
                     .map(this::extractPatientId)
                     .filter(Objects::nonNull)
                     .collect(Collectors.toList());
+
+            if (!fetched.isEmpty()) {
+                return fetched;
+            }
         } catch (RestClientException ex) {
-            logger.error("Failed to fetch patients from {}", patientServiceUrl, ex);
-            return Collections.emptyList();
+            logger.warn("Failed to fetch patients from {}: {}. Falling back to default simulator patients.", patientServiceUrl, ex.getMessage());
         }
+        return List.of("P1001", "P1002", "P101", "PT00001", "PT00002");
     }
 
     private String extractPatientId(Map<String, Object> patient) {

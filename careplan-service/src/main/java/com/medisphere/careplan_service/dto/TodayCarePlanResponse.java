@@ -11,6 +11,7 @@ import com.medisphere.careplan_service.model.CarePlanComment;
  */
 public class TodayCarePlanResponse {
 
+    private String carePlanId;
     private String patientId;
     private List<String> medications;
     private String diet;
@@ -103,7 +104,7 @@ public class TodayCarePlanResponse {
             }
         }
 
-        return new TodayCarePlanResponse(
+        TodayCarePlanResponse resp = new TodayCarePlanResponse(
                 plan.getPatientId(),
                 plan.getMedications(),
                 plan.getDiet(),
@@ -127,6 +128,16 @@ public class TodayCarePlanResponse {
                 plan.getCholesterolImprovement(),
                 latestDocComment
         );
+        resp.setCarePlanId(plan.getCarePlanId() != null ? plan.getCarePlanId() : plan.getId());
+        return resp;
+    }
+
+    public String getCarePlanId() {
+        return carePlanId;
+    }
+
+    public void setCarePlanId(String carePlanId) {
+        this.carePlanId = carePlanId;
     }
 
     public String getPatientId() {

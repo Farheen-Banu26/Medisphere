@@ -37,15 +37,15 @@ public class VitalsController {
 
     // Get Patient Vitals
     @GetMapping("/{patientId}")
-    public List<Vital> getVitals(@PathVariable String patientId) {
-
+    public List<Vital> getVitals(@PathVariable String patientId, jakarta.servlet.http.HttpServletRequest request) {
+        service.verifyPatientResourceAccess(patientId, request);
         return service.getVitalsByPatient(patientId);
     }
 
     // Get Latest
     @GetMapping("/latest/{patientId}")
-    public Vital getLatest(@PathVariable String patientId) {
-
+    public Vital getLatest(@PathVariable String patientId, jakarta.servlet.http.HttpServletRequest request) {
+        service.verifyPatientResourceAccess(patientId, request);
         return service.getLatestVitals(patientId);
     }
 

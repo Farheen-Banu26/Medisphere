@@ -127,7 +127,7 @@ export const PatientRegistration = () => {
         <h2 className="text-2xl font-bold text-white mb-2">Patient Registered Successfully</h2>
         <p className="text-gray-400 mb-8">The patient has been onboarded into the MediSphere Digital Twin platform.</p>
         <div className="flex gap-3 justify-center">
-          <button onClick={() => navigate('/patients')} className="btn-outline">View All Patients</button>
+          <button onClick={() => navigate('/doctor/patients')} className="btn-outline">View All Patients</button>
           <button onClick={() => { setSub2(false); setStep(1); }} className="btn-primary">Register Another</button>
         </div>
       </div>
@@ -284,7 +284,7 @@ export const PatientRegistration = () => {
           <div className="flex items-center justify-between pt-4 border-t border-[#1F2937] mt-2">
             <button
               type="button"
-              onClick={() => step > 1 ? setStep(s => s - 1) : navigate('/patients')}
+              onClick={() => step > 1 ? setStep(s => s - 1) : navigate('/doctor/patients')}
               className="btn-outline"
             >
               <RiArrowLeftLine className="w-4 h-4" />

@@ -32,7 +32,8 @@ public class AlertController {
     }
 
     @GetMapping("/patient/{patientId}")
-    public List<Alert> getPatientAlerts(@PathVariable String patientId) {
+    public List<Alert> getPatientAlerts(@PathVariable String patientId, jakarta.servlet.http.HttpServletRequest request) {
+        alertService.verifyPatientResourceAccess(patientId, request);
         return alertService.findByPatientId(patientId);
     }
 
@@ -42,10 +43,13 @@ public class AlertController {
     }
 
     @GetMapping("/{alertId}")
-    public ResponseEntity<Alert> getAlertById(@PathVariable String alertId) {
+    public ResponseEntity<Alert> getAlertById(@PathVariable String alertId, jakarta.servlet.http.HttpServletRequest request) {
         Alert alert = alertService.findByAlertId(alertId);
         if (alert == null) {
             throw new AlertNotFoundException("Alert not found with id: " + alertId);
+        }
+        if (alert.getPatientId() != null) {
+            alertService.verifyPatientResourceAccess(alert.getPatientId(), request);
         }
         return ResponseEntity.ok(alert);
     }

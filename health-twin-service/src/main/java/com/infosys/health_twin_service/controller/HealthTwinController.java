@@ -29,7 +29,8 @@ public class HealthTwinController {
     }
 
     @GetMapping("/{patientId}")
-    public HealthTwin getTwin(@PathVariable String patientId) {
+    public HealthTwin getTwin(@PathVariable String patientId, jakarta.servlet.http.HttpServletRequest request) {
+        service.verifyPatientResourceAccess(patientId, request);
         return service.getTwin(patientId);
     }
 
@@ -43,17 +44,20 @@ public class HealthTwinController {
     }
 
     @GetMapping("/test/{patientId}")
-    public HealthTwin test(@PathVariable String patientId) {
+    public HealthTwin test(@PathVariable String patientId, jakarta.servlet.http.HttpServletRequest request) {
+        service.verifyPatientResourceAccess(patientId, request);
         return service.getTwin(patientId);
     }
 
     @GetMapping("/{patientId}/health-score")
-    public double calculateHealthScore(@PathVariable String patientId) {
+    public double calculateHealthScore(@PathVariable String patientId, jakarta.servlet.http.HttpServletRequest request) {
+        service.verifyPatientResourceAccess(patientId, request);
         return service.calculateHealthScore(patientId);
     }
 
     @GetMapping("/summary/{patientId}")
-    public Patient360Response getPatient360Summary(@PathVariable String patientId) {
+    public Patient360Response getPatient360Summary(@PathVariable String patientId, jakarta.servlet.http.HttpServletRequest request) {
+        service.verifyPatientResourceAccess(patientId, request);
         return service.getPatient360Summary(patientId);
     }
 

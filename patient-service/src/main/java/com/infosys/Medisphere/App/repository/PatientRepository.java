@@ -11,4 +11,10 @@ public interface PatientRepository extends MongoRepository<Patient, String> {
 
     Optional<Patient> findByPatientIdIgnoreCase(String patientId);
 
+    java.util.List<Patient> findByAssignedDoctorIdIgnoreCase(String assignedDoctorId);
+
+    java.util.List<Patient> findByHospitalIdIgnoreCase(String hospitalId);
+
+    java.util.List<Patient> findBySpecialtyIgnoreCase(String specialty);
+
 }

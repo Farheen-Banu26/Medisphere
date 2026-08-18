@@ -141,18 +141,6 @@ export const Patient360 = () => {
     }
   }, [searchParams, load360]);
 
-  useEffect(() => {
-    if (!patientIdInput) return undefined;
-
-    const interval = setInterval(() => {
-      fhirService.getPatientResources(patientIdInput)
-        .then((response) => setFhirData(response.data || []))
-        .catch(() => { });
-    }, 30000);
-
-    return () => clearInterval(interval);
-  }, [patientIdInput]);
-
   const patientRecord = patient || data360?.patient || null;
   const twin = data360?.healthTwin;
   const vitals = latestVitals || data360?.latestVitals || null;
@@ -238,7 +226,16 @@ export const Patient360 = () => {
         </div>
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
-          <div className="relative flex-1 sm:w-72">
+          {patientIdInput && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <button onClick={() => navigate(`/doctor/health-twin?patientId=${encodeURIComponent(patientIdInput)}`)} className="btn-outline btn-sm">Health Twin</button>
+              <button onClick={() => navigate(`/doctor/vitals?patientId=${encodeURIComponent(patientIdInput)}`)} className="btn-outline btn-sm">Vitals</button>
+              <button onClick={() => navigate(`/doctor/predictions?patientId=${encodeURIComponent(patientIdInput)}`)} className="btn-outline btn-sm">Predictions</button>
+              <button onClick={() => navigate(`/doctor/care-plans-overview?patientId=${encodeURIComponent(patientIdInput)}`)} className="btn-outline btn-sm">Care Plans</button>
+              <button onClick={() => navigate(`/doctor/clinical-insights?patientId=${encodeURIComponent(patientIdInput)}`)} className="btn-outline btn-sm">Clinical Insights</button>
+            </div>
+          )}
+          <div className="relative flex-1 sm:w-64">
             <RiSearchLine className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
             <select
               value={patientIdInput}
@@ -246,9 +243,9 @@ export const Patient360 = () => {
                 const nextPid = e.target.value.trim();
                 setPidInput(nextPid);
                 if (nextPid) {
-                  navigate(`/patient360?patientId=${encodeURIComponent(nextPid)}`, { replace: true });
+                  navigate(`/doctor/patient360?patientId=${encodeURIComponent(nextPid)}`, { replace: true });
                 } else {
-                  navigate('/patient360', { replace: true });
+                  navigate('/doctor/patient360', { replace: true });
                 }
               }}
               className="form-select pl-9"
@@ -266,14 +263,14 @@ export const Patient360 = () => {
             onClick={() => {
               const pid = patientIdInput.trim();
               if (pid) {
-                navigate(`/patient360?patientId=${encodeURIComponent(pid)}`, { replace: true });
+                navigate(`/doctor/patient360?patientId=${encodeURIComponent(pid)}`, { replace: true });
               }
             }}
             className="btn-primary btn-sm whitespace-nowrap"
             disabled={loading || !patientIdInput.trim()}
           >
             {loading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <RiRefreshLine className="w-4 h-4" />}
-            <span className="ml-2">Load</span>
+            <span className="ml-2">Refresh</span>
           </button>
         </div>
       </div>
@@ -283,7 +280,7 @@ export const Patient360 = () => {
           <RiUserLine className="w-16 h-16 text-gray-700 mx-auto" />
           <p className="text-lg font-bold text-gray-400">Choose a patient to begin</p>
           <p className="text-sm text-gray-500">
-            Select a patient from the dropdown or browse the <button onClick={() => navigate('/patients')} className="text-blue-400 hover:text-blue-300">Patient Registry</button>.
+            Select a patient from the dropdown or browse the <button onClick={() => navigate('/doctor/patients')} className="text-blue-400 hover:text-blue-300">Patient Registry</button>.
           </p>
         </div>
       )}
@@ -295,7 +292,7 @@ export const Patient360 = () => {
         </div>
       )}
 
-      {!loading && patientIdInput && !data360 && (
+      {!loading && patientIdInput && !patientRecord && !data360 && (
         <div className="card py-16 text-center space-y-3">
           <RiAlertLine className="w-12 h-12 text-yellow-500 mx-auto" />
           <p className="text-lg font-bold text-gray-400">Patient not found</p>
@@ -303,7 +300,7 @@ export const Patient360 = () => {
         </div>
       )}
 
-      {!loading && data360 && (
+      {!loading && (patientRecord || data360) && (
         <>
           <div className="grid grid-cols-1 xl:grid-cols-[1.6fr_1fr] gap-5">
             <div className="card-lg">

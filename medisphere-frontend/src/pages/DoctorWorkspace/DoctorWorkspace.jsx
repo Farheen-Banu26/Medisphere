@@ -52,8 +52,17 @@ export const DoctorWorkspace = () => {
     setLoading(true);
     setError(null);
     try {
-      const patientRes = await patientService.getAllPatients();
-      const patientList = patientRes.data || [];
+      const userInfo = JSON.parse(localStorage.getItem('user_info') || '{}');
+      const docId = userInfo.username || 'doctor';
+      const patientRes = await patientService.getPatientsByDoctor(docId);
+      let patientList = patientRes.data || [];
+
+      if (!patientList.length) {
+        // Fallback to all patients if assigned is empty
+        const fallbackRes = await patientService.getAllPatients();
+        patientList = fallbackRes.data || [];
+      }
+
       setPatients(patientList);
 
       const enriched = [];

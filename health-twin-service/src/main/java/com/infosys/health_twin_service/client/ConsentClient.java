@@ -11,11 +11,15 @@ public class ConsentClient {
     private RestTemplate restTemplate;
 
     public Object getConsent(String patientId) {
-
-        return restTemplate.getForObject(
-                "http://consent-service/api/consents/{patientId}",
-                Object.class,
-                patientId);
-
+        if (patientId == null || patientId.isBlank()) return null;
+        try {
+            return restTemplate.getForObject(
+                    "http://consent-service/api/consents/{patientId}",
+                    Object.class,
+                    patientId);
+        } catch (Exception e) {
+            System.err.println("ConsentClient error for " + patientId + ": " + e.getMessage());
+            return null;
+        }
     }
 }

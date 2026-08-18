@@ -17,10 +17,20 @@ const breadcrumbMap = {
   '/admin/reports':               ['Admin',     'Reports'],
   '/admin/system-monitoring':     ['Admin',     'System Monitoring'],
   '/admin/settings':              ['Admin',     'Settings'],
+  '/admin/careplan-dashboard':    ['Admin',     'Care Plan Analytics'],
+  '/admin/audit-logs':            ['Admin',     'System Audit Logs'],
+  '/admin/fhir-sync':             ['Admin',     'FHIR Synchronization'],
+  '/admin/operations':            ['Admin',     'Operations Dashboard'],
+  '/admin/predictions-ops':       ['Admin',     'AI Model Operations'],
+  '/admin/validation':            ['Admin',     'Clinical Validation'],
+  '/admin/care-plans-overview':   ['Admin',     'Care Plans Overview'],
   // ── Doctor routes ─────────────────────────────────────────────
   '/doctor/dashboard':            ['Doctor',    'Dashboard'],
+  '/doctor/workspace':            ['Doctor',    'Doctor Workspace'],
+  '/doctor/command-center':       ['Doctor',    'Clinical Command Center'],
   '/doctor/monitoring':           ['Doctor',    'Monitoring'],
   '/doctor/patients':             ['Doctor',    'Patients'],
+  '/doctor/patient-registration': ['Doctor',    'Patient Registration'],
   '/doctor/patient360':           ['Doctor',    'Patient 360'],
   '/doctor/health-twin':          ['Doctor',    'Health Twin'],
   '/doctor/vitals':               ['Doctor',    'Vitals Monitoring'],
@@ -28,7 +38,11 @@ const breadcrumbMap = {
   '/doctor/alert-history':        ['Doctor',    'Alert History'],
   '/doctor/population-monitoring':['Doctor',    'Population Monitoring'],
   '/doctor/careplans':            ['Doctor',    'Care Plans'],
+  '/doctor/care-plans-overview':  ['Doctor',    'Care Plans Overview'],
   '/doctor/clinical-insights':    ['Doctor',    'Clinical Insights'],
+  '/doctor/operations':           ['Doctor',    'Operations Dashboard'],
+  '/doctor/validation':           ['Doctor',    'Clinical Validation'],
+  '/doctor/fhir-sync':            ['Doctor',    'FHIR Synchronization'],
   '/doctor/reports':              ['Doctor',    'Reports'],
   // ── Patient routes ────────────────────────────────────────────
   '/patient/dashboard':           ['Patient',   'Dashboard'],
@@ -39,6 +53,7 @@ const breadcrumbMap = {
   '/patient/alerts':              ['Patient',   'My Alerts'],
   '/patient/reports':             ['Patient',   'My Reports'],
   '/patient/consent':             ['Patient',   'Consent Management'],
+  '/patient/careplan':            ['Patient',   'My Care Plan'],
 };
 
 const systemAlerts = [

@@ -35,5 +35,20 @@ public class Patient {
 
     private String address;
 
+    // Assignment & Healthcare Provider Fields (Optional)
+    private String hospitalId;
+
+    private String hospitalName;
+
+    private String assignedDoctorId;
+
+    private String assignedDoctorName;
+
+    private String specialty;
+
+    private String department;
+
+    private String condition;
+
     private LocalDateTime createdAt;
 }

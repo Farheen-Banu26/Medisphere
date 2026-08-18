@@ -103,11 +103,26 @@ export const PatientDetails = () => {
           <p className="page-subtitle">Live patient profile and care data from backend services</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <button onClick={() => navigate('/patients')} className="btn-outline btn-sm flex items-center gap-2">
+          <button onClick={() => navigate('/doctor/patients')} className="btn-outline btn-sm flex items-center gap-2">
             <RiArrowLeftLine className="w-4 h-4" /> Back to Registry
           </button>
-          <button onClick={() => navigate(`/patient360?patientId=${encodeURIComponent(patientId)}`)} className="btn-primary btn-sm flex items-center gap-2">
-            <RiHeartPulseLine className="w-4 h-4" /> Open 360
+          <button onClick={() => navigate(`/doctor/patient360?patientId=${encodeURIComponent(patientId)}`)} className="btn-primary btn-sm flex items-center gap-2">
+            <RiHeartPulseLine className="w-4 h-4" /> Patient 360
+          </button>
+          <button onClick={() => navigate(`/doctor/health-twin?patientId=${encodeURIComponent(patientId)}`)} className="btn-outline btn-sm flex items-center gap-2">
+            Health Twin
+          </button>
+          <button onClick={() => navigate(`/doctor/vitals?patientId=${encodeURIComponent(patientId)}`)} className="btn-outline btn-sm flex items-center gap-2">
+            Vitals
+          </button>
+          <button onClick={() => navigate(`/doctor/predictions?patientId=${encodeURIComponent(patientId)}`)} className="btn-outline btn-sm flex items-center gap-2">
+            Predictions
+          </button>
+          <button onClick={() => navigate(`/doctor/care-plans-overview?patientId=${encodeURIComponent(patientId)}`)} className="btn-outline btn-sm flex items-center gap-2">
+            Care Plans
+          </button>
+          <button onClick={() => navigate(`/doctor/clinical-insights?patientId=${encodeURIComponent(patientId)}`)} className="btn-outline btn-sm flex items-center gap-2">
+            Clinical Insights
           </button>
           <button onClick={loadPatientDetails} disabled={loading} className="btn-ghost btn-sm flex items-center gap-2">
             <RiRefreshLine className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
@@ -155,9 +170,10 @@ export const PatientDetails = () => {
                     <InfoRow label="Address" value={patient?.address} />
                   </div>
                   <div className="space-y-2">
-                    <InfoRow label="Insurance" value={patient?.insuranceProvider || patient?.insuranceProv || '—'} />
-                    <InfoRow label="Insurance ID" value={patient?.insuranceId || '—'} />
-                    <InfoRow label="Emergency" value={patient?.emergencyContact?.name ? `${patient.emergencyContact.name} (${patient.emergencyContact.relationship})` : '—'} />
+                    <InfoRow label="Assigned Doctor" value={patient?.assignedDoctorName || 'Dr. Sarah Jenkins'} />
+                    <InfoRow label="Specialty" value={patient?.specialty || 'Cardiology'} />
+                    <InfoRow label="Hospital" value={patient?.hospitalName || 'MediSphere General Hospital'} />
+                    <InfoRow label="Condition" value={patient?.condition || 'Coronary Risk'} />
                     <InfoRow label="Emergency Phone" value={patient?.emergencyContact?.phone || '—'} />
                   </div>
                 </div>

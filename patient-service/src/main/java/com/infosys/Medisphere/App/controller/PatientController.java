@@ -33,16 +33,16 @@ public class PatientController {
         return patientService.registerPatient(patient);
     }
 
-    // Get All Patients
+    // Get All Patients (Secured)
     @GetMapping
-    public List<Patient> getAllPatients() {
-        return patientService.getAllPatients();
+    public List<Patient> getAllPatients(jakarta.servlet.http.HttpServletRequest request) {
+        return patientService.getAllPatientsSecured(request);
     }
 
-    // Get Patient By Patient ID
+    // Get Patient By Patient ID (Secured)
     @GetMapping("/{patientId}")
-    public Patient getPatientById(@PathVariable String patientId) {
-        return patientService.getPatientById(patientId);
+    public Patient getPatientById(@PathVariable String patientId, jakarta.servlet.http.HttpServletRequest request) {
+        return patientService.getPatientByIdSecured(patientId, request);
     }
 
     // Update Patient
@@ -56,5 +56,37 @@ public class PatientController {
     @DeleteMapping("/{id}")
     public String deletePatient(@PathVariable String id) {
         return patientService.deletePatient(id);
+    }
+
+    // Seed Assignment Data (Idempotent)
+    @PostMapping("/seed")
+    public String seedPatients() {
+        return patientService.seedPatients();
+    }
+
+    // Get Patients Assigned to Doctor (Secured)
+    @GetMapping("/doctor/{doctorId}")
+    public List<Patient> getPatientsByDoctor(@PathVariable String doctorId, jakarta.servlet.http.HttpServletRequest request) {
+        return patientService.getPatientsByDoctorSecured(doctorId, request);
+    }
+
+    // Get Patients By Hospital
+    @GetMapping("/hospital/{hospitalId}")
+    public List<Patient> getPatientsByHospital(@PathVariable String hospitalId) {
+        return patientService.getPatientsByHospital(hospitalId);
+    }
+
+    // Get Patients By Specialty
+    @GetMapping("/specialty/{specialty}")
+    public List<Patient> getPatientsBySpecialty(@PathVariable String specialty) {
+        return patientService.getPatientsBySpecialty(specialty);
+    }
+
+    // Re-Assign Patient (Admin-Only Workflow)
+    @PutMapping("/{patientId}/assign")
+    public String assignPatient(@PathVariable String patientId,
+                                @RequestBody Patient assignmentData,
+                                jakarta.servlet.http.HttpServletRequest request) {
+        return patientService.assignPatientSecured(patientId, assignmentData, request);
     }
 }

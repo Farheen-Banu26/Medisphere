@@ -42,11 +42,14 @@ class ValidationAndAuditTest {
     @Mock
     private FlaskClient flaskClient;
 
+    @Mock
+    private com.medisphere.careplan_service.client.GeminiClient geminiClient;
+
     private CarePlanService service;
 
     @BeforeEach
     void setUp() {
-        service = new CarePlanService(repository, patientClient, healthTwinClient, flaskClient);
+        service = new CarePlanService(repository, patientClient, healthTwinClient, flaskClient, geminiClient);
     }
 
     private CarePlan createCompleteValidPlan(String carePlanId) {

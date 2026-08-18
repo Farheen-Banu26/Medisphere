@@ -1,6 +1,5 @@
-// src/pages/Consent/ConsentManagement.jsx
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import {
   RiShieldCheckLine, RiShieldLine, RiRefreshLine,
   RiAddLine, RiCheckLine, RiCloseLine, RiAlertLine,
@@ -20,6 +19,7 @@ const ConsentBadge = ({ status }) => {
 
 export const ConsentManagement = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const { notify } = useNotification();
 
@@ -125,9 +125,9 @@ export const ConsentManagement = () => {
               const nextPid = e.target.value;
               setPid(nextPid);
               if (nextPid) {
-                navigate(`/consent?patientId=${encodeURIComponent(nextPid)}`, { replace: true });
+                navigate(`${location.pathname}?patientId=${encodeURIComponent(nextPid)}`, { replace: true });
               } else {
-                navigate('/consent', { replace: true });
+                navigate(location.pathname, { replace: true });
               }
             }}
             className="form-select w-56"

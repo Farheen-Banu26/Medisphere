@@ -8,19 +8,27 @@ import {
   RiStethoscopeLine,
   RiBarChartLine, RiPulseLine, RiClipboardLine, RiTimeLine,
   RiSettings3Line, RiGitBranchLine, RiAlertLine,
+  RiUserAddLine, RiCheckboxLine, RiFlashlightLine, RiHistoryLine,
 } from 'react-icons/ri';
 
 // ─── Admin navigation ──────────────────────────────────────────────────────────
 const adminNavItems = [
   { section: 'WORKSPACE' },
   { path: '/admin/dashboard',              label: 'Dashboard',            icon: RiDashboardLine    },
+  { path: '/admin/doctors-hospitals',      label: 'Doctors & Hospitals',  icon: RiHospitalLine     },
   { section: 'ANALYTICS' },
   { path: '/admin/population-monitoring',  label: 'Population Monitoring', icon: RiHospitalLine    },
+  { path: '/admin/careplan-dashboard',    label: 'Care Plan Analytics',  icon: RiBarChartLine    },
   { path: '/admin/reports',                label: 'Reports',              icon: RiFileTextLine     },
   { section: 'AI' },
   { path: '/admin/model-management',       label: 'Model Management',     icon: RiGitBranchLine    },
+  { path: '/admin/predictions-ops',        label: 'Model Operations',     icon: RiRobot2Line       },
   { section: 'OPERATIONS' },
+  { path: '/admin/operations',             label: 'Operations Dashboard', icon: RiBarChartLine     },
+  { path: '/admin/fhir-sync',              label: 'FHIR Sync',            icon: RiExchangeLine     },
   { path: '/admin/system-monitoring',      label: 'System Monitoring',    icon: RiPulseLine        },
+  { path: '/admin/validation',             label: 'Clinical Validation',  icon: RiCheckboxLine     },
+  { path: '/admin/audit-logs',             label: 'Audit Logs',           icon: RiHistoryLine      },
   { section: 'ACCOUNT' },
   { path: '/admin/settings',               label: 'Settings',             icon: RiSettings3Line   },
 ];
@@ -29,8 +37,11 @@ const adminNavItems = [
 const doctorNavItems = [
   { section: 'WORKSPACE' },
   { path: '/doctor/dashboard',             label: 'Dashboard',            icon: RiDashboardLine    },
+  { path: '/doctor/workspace',             label: 'Doctor Workspace',     icon: RiHospitalLine     },
+  { path: '/doctor/command-center',       label: 'Command Center',       icon: RiFlashlightLine   },
   { section: 'PATIENTS' },
   { path: '/doctor/patients',              label: 'Patients',             icon: RiUserLine         },
+  { path: '/doctor/patient-registration', label: 'Register Patient',     icon: RiUserAddLine      },
   { path: '/doctor/patient360',            label: 'Patient 360',          icon: RiHeartPulseLine   },
   { section: 'CLINICAL' },
   { path: '/doctor/health-twin',           label: 'Health Twin',          icon: RiRobot2Line       },
@@ -51,6 +62,7 @@ const patientNavItems = [
   { path: '/patient/dashboard',  label: 'Dashboard',      icon: RiDashboardLine   },
   { path: '/patient/health-twin', label: 'Health Twin',   icon: RiRobot2Line      },
   { path: '/patient/vitals',     label: 'Vitals',          icon: RiHeartPulseLine  },
+  { path: '/patient/careplan',   label: 'My Care Plan',    icon: RiClipboardLine   },
   { path: '/patient/predictions', label: 'AI Predictions', icon: RiBarChartLine   },
   { path: '/patient/alerts',     label: 'Alerts',          icon: RiAlertLine       },
   { section: 'INFORMATION' },
