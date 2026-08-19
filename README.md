@@ -1,4 +1,4 @@
-# MediSphere — Local Development Guide
+# Healthcare Management Platform For Clinical Operations— Local Development Guide
 
 Welcome to the **MediSphere Healthcare Platform**. This guide explains how to run MediSphere locally using a lightweight hybrid architecture.
 
